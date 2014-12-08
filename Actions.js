@@ -6,7 +6,7 @@ var Actions = {
   _end: function end(result){
     if(this._emitted) throw new Error("Action could not be finalized twice: " + actionName);
     this._emitted = true;
-    Actions.emit(actionName, result);
+    this.emit(this.actionName, result);
   },
   actionRouter: "actionRouter",
   _sequence: [],
@@ -35,9 +35,9 @@ var Actions = {
       params._emitted = false;
       params.end = Actions._end;
 
-      params.emit = Actions.emit;
+      params.emit = Actions.emit.bind(Actions);
       params.actionName = actionName;
-      console.log(sequence);
+
       var res = sequence.reduce(function(dostuff, func){
         func = func.map(function(funcArg){
           return funcArg.bind(params);

@@ -6,6 +6,8 @@ var App = require('./App');
 var User = require('./User');
 var UserStore = require('./UserStore');
 var Promise = require('es6-promise').Promise;
+var FluxNot = require('./fluxnot');
+
 
 var isClient = true;
 
@@ -15,23 +17,6 @@ var routes = (
   </Route>
 );
 
-
-function renderIfClient(data){
-  if(isClient && init) this._render();
-  return data;
-}
-function renderIfServer(result){
-  if(!isClient || !init) {
-    this.end = function end(result){
-      if(this._emitted) return;
-      console.log("emit on Action END ", this.actionName);
-      this._emitted = true;
-      Actions.emit(this.actionName, result);
-      this._render();
-    }
-  }
-  return result;
-}
 
 function log(data){
   if(this.path){
@@ -43,12 +28,15 @@ function log(data){
 }
 
 Actions.use(log);
-Actions.use(renderIfClient);
+Actions.use(FluxNot.client.renderIfClient);
 Actions.use(Actions.actionRouter);
-Actions.use(renderIfServer);
+Actions.use(FluxNot.client.renderIfServer);
+
+
 
 Actions.create('/user/:userID').then(function doit(){
   var that = this;
+
   return new Promise(function(fulfil, rej){
     setTimeout( function(){
       fulfil({uid: that.params.userID, age: that.query.showAge?33:''});
@@ -56,15 +44,29 @@ Actions.create('/user/:userID').then(function doit(){
   })
 });
 
-Actions.create('/').then(function doit(){
-  var that = this;
-  return new Promise(function(fulfil, rej){
-    setTimeout( function(){
-      console.log("HOME");
-      fulfil();
-    }, 400);
-  })
-});
+var isClient = true;
+try{
+  document 
+}catch(e){
+  isClient = false;
+}
+if(isClient){
+  FluxNot.client.createClient({
+    routes: routes,
+    Actions: Actions
+  });
+}
+
+module.exports = function(){
+  return FluxNot.server.createServer({
+    routes: routes,
+    Actions: Actions,
+    indexTemplate: require('fs').readFileSync("./index.html")
+  });
+}
+
+/*
+
 
 /*
 fetch('/api/test', function(){})
@@ -87,43 +89,9 @@ request('/multifetch', {fetch:['/api/test', '/api/test1','/api/test1?tes={baz}',
 /* while loadin initailly it is better to render after inidial data will come in 
   so first client time should be like server one.
 */
-var init = false;
-try{
-Router.run(routes, Router.HistoryLocation, function (Handler, state) {
-  state._render = function(){
-    console.log("RENDER");
+/*
 
-    return React.render(<Handler/>, document.getElementById('content'));
-    init = true;
-  }
-
-  var urlMatched = state.routes[state.routes.length - 1].path;
-  if(Actions[urlMatched]) {
-    Actions.doAction(urlMatched, state);
-  } else {
-    state._render();
-  }
-});
-}catch(e){console.log(e)}
-
-module.exports = function renderForServer(url, cb){
-  isClient = false;
-  Router.run(routes, url, function (Handler, state) {
-    state._render = function(){
-      var result = React.renderToString(<Handler/>);
-      console.log("RENDER server" + result);
-      cb(null, "<html><head></head><body><div id='content'>" + result + "</div><script src='/bundle.js'></script></body></html>");
-    }
-
-    var urlMatched = state.routes[state.routes.length - 1].path;
-    if(Actions[urlMatched]) {
-      Actions.doAction(urlMatched, state);
-    } else {
-      state._render();
-    }
-  });
-}
-
+*/
 
 /*
 API:

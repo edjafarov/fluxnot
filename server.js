@@ -8,12 +8,6 @@ app.get('/bundle.js', function(req, res){
 	fs.createReadStream('./bundle.js').pipe(res);
 });
 
-
-app.get('*', function(req, res){
-  renderable(req.originalUrl, resp);
-  function resp(err, data){
-  	res.end(data);
-  }
-});
+app.use(renderable());
 
 app.listen(3000);

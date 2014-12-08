@@ -7,7 +7,7 @@ var Actions = {
   _end: function end(result){
     if(this._emitted) throw new Error("Action could not be finalized twice: " + actionName);
     this._emitted = true;
-    Actions.emit(actionName, result);
+    this.emit(this.actionName, result);
   },
   actionRouter: "actionRouter",
   _sequence: [],
@@ -36,9 +36,9 @@ var Actions = {
       params._emitted = false;
       params.end = Actions._end;
 
-      params.emit = Actions.emit;
+      params.emit = Actions.emit.bind(Actions);
       params.actionName = actionName;
-      console.log(sequence);
+
       var res = sequence.reduce(function(dostuff, func){
         func = func.map(function(funcArg){
           return funcArg.bind(params);
@@ -100,7 +100,6 @@ module.exports = React.createClass({displayName: 'exports',
     UserStore.on('change', this.onUserChage);
   },
   onUserChage: function(user){
-  	console.log("Component state update: ", user);
   	this.setState({user:user})
   },
   render: function () {
@@ -137,7 +136,98 @@ UserStore.__proto__ = new Emitter();
 UserStore.init();
 
 module.exports = UserStore;
-},{"./Actions":"/Users/edjafarov/work/fluxnot/Actions.js","events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}],"/Users/edjafarov/work/fluxnot/main.js":[function(require,module,exports){
+},{"./Actions":"/Users/edjafarov/work/fluxnot/Actions.js","events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}],"/Users/edjafarov/work/fluxnot/fluxnot.js":[function(require,module,exports){
+var Router = require('react-router');
+var Route = Router.Route;
+var React = require('react');
+var isClient = false;
+/* need routes to be defined */
+// index template need to be defined
+// static middleware should be enabled before
+// need actions to be defined
+// client Main should export routes and actions
+
+function createServerMiddleware(options){
+	isClient = false;
+	if(!options.indexTemplate) throw new Error("indexTemplate option should be defined");
+	if(!options.routes) throw new Error("routes option should be defined");
+	if(!options.Actions) throw new Error("Actions option should be defined");
+
+  var indexTemplate = options.indexTemplate.toString();
+  return function renderReactServer(req, res, next){
+    Router.run(options.routes, req.originalUrl, function (Handler, state) {
+      state._render = function(){
+        var renderedApp = React.renderToString(React.createElement(Handler, null));
+        res.end(indexTemplate.replace('<body>','<body><div id="content">' + renderedApp + '<div>'));
+      }    
+      var urlMatched = state.routes[state.routes.length - 1].path;
+      if(options.Actions[urlMatched]) { //matched URL
+        options.Actions.doAction(urlMatched, state);
+      } else { //do not match any URL (404)
+        next(); // or Actions.doAction('/404', state);
+      }
+    });
+  }
+}
+
+function renderIfClient(data){
+  if(isClient && clientRederedOnce) this._render();
+  return data;
+}
+/* TODO: check error handling for server rendering */
+function renderIfServer(result){
+  if(!isClient || !clientRederedOnce) {
+    this.end = function end(result){
+      if(this._emitted) throw new Error("Action could not be finalized twice: " + actionName);
+      this._emitted = true;
+      this.emit(this.actionName, result);
+      this._render();
+    }
+  }
+  return result;
+}
+
+
+var clientRederedOnce = false;
+
+function createClient(options){
+	isClient = true;
+	if(!options.routes) throw new Error("routes option should be defined");
+	if(!options.Actions) throw new Error("Actions option should be defined");
+//, Router.HistoryLocation
+	Router.run(options.routes,Router.HistoryLocation ,function (Handler, state) {
+	  state._render = function(){
+	  	clientRederedOnce = true;
+	    return React.render(React.createElement(Handler, null), document.getElementById('content'));
+	  }
+	  var urlMatched = state.routes[state.routes.length - 1].path;
+	  if(options.Actions[urlMatched]) {
+	    options.Actions.doAction(urlMatched, state);
+	  } else {
+	    state._render();
+	  }
+	});
+}
+
+function multifetchMiddleware(){
+
+}
+
+
+
+module.exports ={
+	isClient: isClient,
+	server: {
+		createServer: createServerMiddleware,
+		multifetchMiddleware: multifetchMiddleware
+	},
+	client: {
+		createClient: createClient,
+		renderIfServer: renderIfServer,
+		renderIfClient: renderIfClient
+	}
+}
+},{"react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/main.js":[function(require,module,exports){
 var React = require('react');
 var Router = require('react-router');
 var $__0=      Router,Route=$__0.Route,RouteHandler=$__0.RouteHandler,Link=$__0.Link;
@@ -146,6 +236,8 @@ var App = require('./App');
 var User = require('./User');
 var UserStore = require('./UserStore');
 var Promise = require('es6-promise').Promise;
+var FluxNot = require('./fluxnot');
+
 
 var isClient = true;
 
@@ -155,23 +247,6 @@ var routes = (
   )
 );
 
-
-function renderIfClient(data){
-  if(isClient && init) this._render();
-  return data;
-}
-function renderIfServer(result){
-  if(!isClient || !init) {
-    this.end = function end(result){
-      if(this._emitted) return;
-      console.log("emit on Action END ", this.actionName);
-      this._emitted = true;
-      Actions.emit(this.actionName, result);
-      this._render();
-    }
-  }
-  return result;
-}
 
 function log(data){
   if(this.path){
@@ -183,12 +258,15 @@ function log(data){
 }
 
 Actions.use(log);
-Actions.use(renderIfClient);
+Actions.use(FluxNot.client.renderIfClient);
 Actions.use(Actions.actionRouter);
-Actions.use(renderIfServer);
+Actions.use(FluxNot.client.renderIfServer);
+
+
 
 Actions.create('/user/:userID').then(function doit(){
   var that = this;
+
   return new Promise(function(fulfil, rej){
     setTimeout( function(){
       fulfil({uid: that.params.userID, age: that.query.showAge?33:''});
@@ -196,15 +274,29 @@ Actions.create('/user/:userID').then(function doit(){
   })
 });
 
-Actions.create('/').then(function doit(){
-  var that = this;
-  return new Promise(function(fulfil, rej){
-    setTimeout( function(){
-      console.log("HOME");
-      fulfil();
-    }, 400);
-  })
-});
+var isClient = true;
+try{
+  document 
+}catch(e){
+  isClient = false;
+}
+if(isClient){
+  FluxNot.client.createClient({
+    routes: routes,
+    Actions: Actions
+  });
+}
+
+module.exports = function(){
+  return FluxNot.server.createServer({
+    routes: routes,
+    Actions: Actions,
+    indexTemplate: require('fs').readFileSync("./index.html")
+  });
+}
+
+/*
+
 
 /*
 fetch('/api/test', function(){})
@@ -227,48 +319,16 @@ request('/multifetch', {fetch:['/api/test', '/api/test1','/api/test1?tes={baz}',
 /* while loadin initailly it is better to render after inidial data will come in 
   so first client time should be like server one.
 */
-var init = false;
-try{
-Router.run(routes, Router.HistoryLocation, function (Handler, state) {
-  state._render = function(){
-    console.log("RENDER");
+/*
 
-    return React.render(React.createElement(Handler, null), document.getElementById('content'));
-    init = true;
-  }
-
-  var urlMatched = state.routes[state.routes.length - 1].path;
-  if(Actions[urlMatched]) {
-    Actions.doAction(urlMatched, state);
-  } else {
-    state._render();
-  }
-});
-}catch(e){console.log(e)}
-
-module.exports = function renderForServer(url, cb){
-  isClient = false;
-  Router.run(routes, url, function (Handler, state) {
-    state._render = function(){
-      var result = React.renderToString(React.createElement(Handler, null));
-      console.log("RENDER server" + result);
-      cb(null, "<html><head></head><body><div id='content'>" + result + "</div><script src='/bundle.js'></script></body></html>");
-    }
-
-    var urlMatched = state.routes[state.routes.length - 1].path;
-    if(Actions[urlMatched]) {
-      Actions.doAction(urlMatched, state);
-    } else {
-      state._render();
-    }
-  });
-}
-
+*/
 
 /*
 API:
 */
-},{"./Actions":"/Users/edjafarov/work/fluxnot/Actions.js","./App":"/Users/edjafarov/work/fluxnot/App.js","./User":"/Users/edjafarov/work/fluxnot/User.js","./UserStore":"/Users/edjafarov/work/fluxnot/UserStore.js","es6-promise":"/Users/edjafarov/work/fluxnot/node_modules/es6-promise/dist/es6-promise.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/buffer/index.js":[function(require,module,exports){
+},{"./Actions":"/Users/edjafarov/work/fluxnot/Actions.js","./App":"/Users/edjafarov/work/fluxnot/App.js","./User":"/Users/edjafarov/work/fluxnot/User.js","./UserStore":"/Users/edjafarov/work/fluxnot/UserStore.js","./fluxnot":"/Users/edjafarov/work/fluxnot/fluxnot.js","es6-promise":"/Users/edjafarov/work/fluxnot/node_modules/es6-promise/dist/es6-promise.js","fs":"/Users/edjafarov/work/fluxnot/node_modules/browserify/lib/_empty.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/node_modules/browserify/lib/_empty.js":[function(require,module,exports){
+
+},{}],"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/buffer/index.js":[function(require,module,exports){
 /*!
  * The buffer module from node.js, for the browser.
  *

@@ -11,7 +11,6 @@ module.exports = React.createClass({
     UserStore.on('change', this.onUserChage);
   },
   onUserChage: function(user){
-  	console.log("Component state update: ", user);
   	this.setState({user:user})
   },
   render: function () {
