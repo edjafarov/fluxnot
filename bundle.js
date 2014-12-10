@@ -11,12 +11,18 @@ var Actions = {
   },
   actionRouter: "actionRouter",
   _sequence: [],
+  _catch: null,
   use: function(){
     Actions._sequence.push([].slice.call(arguments));
   },
+  catch: function(fn){
+    fn.isCatch = true;
+    Actions._sequence.push([fn]);
+  },  
   create: function(actionName){
     var sequence = [].concat(Actions._sequence);
     var actionRouterIndex = -1;
+    var actionChainLength = 0;
     var isStrict = false;
 
     sequence.forEach(function(args, i){
@@ -41,14 +47,30 @@ var Actions = {
 
       var res = sequence.reduce(function(dostuff, func){
         func = func.map(function(funcArg){
-          return funcArg.bind(params);
+          var isCatch = funcArg.isCatch;
+          var res = funcArg.bind(params);
+          res.isCatch = isCatch;
+          return res;
         });
+        if(func[0] && func[0].isCatch) return dostuff.catch.apply(dostuff, func);
         return dostuff.then.apply(dostuff, func);
       }, Promise.resolve(data));
     };
+
+    Actions[actionName].getSequence = function getSequence() {
+      return sequence.slice(actionRouterIndex, actionRouterIndex + actionChainLength);
+    }
+
     var self = {
       then: function(){
-        sequence.splice(actionRouterIndex, 0, [].slice.call(arguments));
+        sequence.splice(actionRouterIndex + actionChainLength, 0, [].slice.call(arguments));
+        actionChainLength++;
+        return self;
+      },
+      catch: function(fn){
+        fn.isCatch = true;
+        sequence.splice(actionRouterIndex + actionChainLength, 0, [fn]);
+        actionChainLength++;
         return self;
       },
       strict: function(strict){
@@ -61,8 +83,79 @@ var Actions = {
   doAction: function(actionName){
     var arg = [].slice.call(arguments);
 		Actions[arg.shift()].apply(this, arg);
-	}
+	},
+
+  doActions: function(actionNames, params, data){
+    var sequence = [].concat(Actions._sequence);
+    var actionRouterIndex = -1;
+    var actionChainLength = 0;
+    var isStrict = false;
+
+    sequence.forEach(function(args, i){
+      if(args[0] == Actions.actionRouter) actionRouterIndex = i;
+    });
+    if(!!~actionRouterIndex) {
+      sequence.splice(actionRouterIndex, 1);
+    } else {
+      actionRouterIndex = sequence.length -1;
+    }
+    sequence.push([function finish(){
+      this.end.apply(this, arguments);
+    }]);
+    params._emitted = false;
+    params.end = Actions._end;
+    params.emit = Actions.emit.bind(Actions);
+    params.actionName = actionNames[actionNames.length - 1];   
+    sequence = sequence.map(function(handlers){
+      return handlers.map(function(funcArg){
+        var isCatch = funcArg.isCatch;
+        var res = funcArg.bind(params);
+        res.isCatch = isCatch;        
+        return res;
+      })
+    });
+
+    var subSequences = [];
+    actionNames.forEach(function(actionName, i){
+      var specificParams = {};
+
+      specificParams.__proto__ = params;
+
+      var subSequence = Actions[actionName].getSequence();
+
+      specificParams._emitted = false;
+      specificParams.end = Actions._end;
+
+      specificParams.emit = Actions.emit.bind(Actions);
+      specificParams.actionName = actionName;      
+      subSequence = subSequence.map(function(handlers){
+        return handlers.map(function(funcArg){
+          var isCatch = funcArg.isCatch;
+          var res = funcArg.bind(specificParams);
+          res.isCatch = isCatch;        
+          return res;          
+        });
+      });
+
+      if(actionNames.length - 1 != i) {
+        subSequence.push([function(result){
+          this.end.apply(this, arguments);
+          return result;
+        }.bind(specificParams)])
+      }
+      subSequences = subSequences.concat(subSequence);
+
+    });
+
+    sequence.splice.apply(sequence, [actionRouterIndex + actionChainLength, 0].concat(subSequences));
+
+    var res = sequence.reduce(function(dostuff, func){
+      if(func[0] && func[0].isCatch) return dostuff.catch.apply(dostuff, func);
+      return dostuff.then.apply(dostuff, func);
+    }, Promise.resolve(data));
+  }  
 };
+
 Actions.__proto__ = new Emitter();
 module.exports = Actions;
 
@@ -71,47 +164,18 @@ module.exports = Actions;
 var React = require('react');
 var Router = require('react-router');
 var $__0=      Router,Route=$__0.Route,RouteHandler=$__0.RouteHandler,Link=$__0.Link;
+var UsersList = require('./components/UsersList');
 
 module.exports = React.createClass({displayName: 'exports',
   render: function () {
     return (
-      React.createElement("div", null, 
-        React.createElement("ul", null, 
-          React.createElement("li", null, React.createElement(Link, {to: "user", params: {userID: "123"}}, "Bob")), 
-          React.createElement("li", null, React.createElement(Link, {to: "user", params: {userID: "123"}, query: {showAge: true}}, "Bob With Query Params")), 
-          React.createElement("li", null, React.createElement(Link, {to: "user", params: {userID: "abc"}}, "Sally"))
-        ), 
+      React.createElement("div", null, React.createElement(Link, {to: "users"}, "Open Users"), 
         React.createElement(RouteHandler, null)
       )
     );
   }
 });
-},{"react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/User.js":[function(require,module,exports){
-var React = require('react');
-var Router = require('react-router');
-var UserStore = require('./UserStore');
-
-module.exports = React.createClass({displayName: 'exports',
-  mixins: [ Router.State ],
-  getInitialState: function(){
-  	return {user: UserStore.get()};
-  },
-  componentDidMount: function() {
-    UserStore.on('change', this.onUserChage);
-  },
-  onUserChage: function(user){
-  	this.setState({user:user})
-  },
-  render: function () {
-    return (
-      React.createElement("div", {className: "User"}, 
-        React.createElement("h1", null, "User id: ", this.state.user.uid), 
-        this.state.user.age
-      )
-    );
-  }
-});
-},{"./UserStore":"/Users/edjafarov/work/fluxnot/UserStore.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/UserStore.js":[function(require,module,exports){
+},{"./components/UsersList":"/Users/edjafarov/work/fluxnot/components/UsersList.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/UserStore.js":[function(require,module,exports){
 var Actions = require('./Actions');
 var Emitter = require('events').EventEmitter;
 
@@ -136,7 +200,81 @@ UserStore.__proto__ = new Emitter();
 UserStore.init();
 
 module.exports = UserStore;
-},{"./Actions":"/Users/edjafarov/work/fluxnot/Actions.js","events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}],"/Users/edjafarov/work/fluxnot/fluxnot.js":[function(require,module,exports){
+},{"./Actions":"/Users/edjafarov/work/fluxnot/Actions.js","events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}],"/Users/edjafarov/work/fluxnot/components/UserDetails.js":[function(require,module,exports){
+var React = require('react');
+var Router = require('react-router');
+var UserStore = require('../stores/UserStore');
+var UserItem = require('./UserItem');
+
+module.exports = React.createClass({displayName: 'exports',
+  mixins: [ Router.State ],
+  getInitialState: function(){
+  	return {user: UserStore.get()};
+  },
+  componentDidMount: function() {
+    UserStore.on('change', this.onUserChage);
+  },
+  onUserChage: function(user){
+  	this.setState({user:user});
+  },
+  render: function () {
+    return (
+      React.createElement("div", {className: "UserDetails"}, 
+        UserItem(this.state.user)
+      )
+    );
+  }
+});
+},{"../stores/UserStore":"/Users/edjafarov/work/fluxnot/stores/UserStore.js","./UserItem":"/Users/edjafarov/work/fluxnot/components/UserItem.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/components/UserItem.js":[function(require,module,exports){
+var React = require('react');
+var Router = require('react-router');
+
+
+module.exports = React.createClass({displayName: 'exports',
+  mixins: [ Router.State ],
+  render: function () {
+    return (
+      React.createElement("div", {className: "User"}, 
+        React.createElement("h3", null, this.props.name), 
+        React.createElement("div", null, React.createElement("label", null, "age:"), this.props.age), 
+        React.createElement("h4", null, "Bio:"), 
+        React.createElement("p", null, this.props.age)
+      )
+    );
+  }
+});
+},{"react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/components/UsersList.js":[function(require,module,exports){
+var React = require('react');
+var Router = require('react-router');
+var $__0=      Router,Route=$__0.Route,RouteHandler=$__0.RouteHandler,Link=$__0.Link;
+var UsersStore = require('../stores/UsersStore');
+var UserItem = require('./UserItem');
+
+module.exports = React.createClass({displayName: 'exports',
+  mixins: [ Router.State ],
+  getInitialState: function(){
+  	return {users: UsersStore.get()};
+  },
+  componentDidMount: function() {
+    UsersStore.on('change', this.onUsersChage);
+  },
+  onUsersChage: function(users){
+  	this.setState({users:users})
+  },
+  render: function () {
+    return (
+      React.createElement("div", {className: "Users"}, 
+      	React.createElement("ul", null, 
+        this.state.users.map(function(user){
+        	return React.createElement("li", null, React.createElement(Link, {to: "user", params: {userId: user.id}}, user.name))
+        })
+        ), 
+        React.createElement(RouteHandler, null)
+      )
+    );
+  }
+});
+},{"../stores/UsersStore":"/Users/edjafarov/work/fluxnot/stores/UsersStore.js","./UserItem":"/Users/edjafarov/work/fluxnot/components/UserItem.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/fluxnot.js":[function(require,module,exports){
 var Router = require('react-router');
 var Route = Router.Route;
 var React = require('react');
@@ -157,26 +295,34 @@ function createServerMiddleware(options){
   return function renderReactServer(req, res, next){
     Router.run(options.routes, req.originalUrl, function (Handler, state) {
       state._render = function(){
+      	console.log("RENDER");
         var renderedApp = React.renderToString(React.createElement(Handler, null));
         res.end(indexTemplate.replace('<body>','<body><div id="content">' + renderedApp + '<div>'));
       }    
-      var urlMatched = state.routes[state.routes.length - 1].path;
-      if(options.Actions[urlMatched]) { //matched URL
-        options.Actions.doAction(urlMatched, state);
-      } else { //do not match any URL (404)
-        next(); // or Actions.doAction('/404', state);
+      var urlsMatched = state.routes.map(function(route){
+      	return route.path;
+      }).reduce(function(res, path){
+      	if(options.Actions[path]) res.push(path);
+      	return res;
+      },[]);
+      if(urlsMatched.length == 1) { //matched URL
+        options.Actions.doAction(urlsMatched[0], state);
+      } else if(urlsMatched.length > 1){
+      	options.Actions.doActions(urlsMatched, state);
+      }else{
+        state._render(); // or Actions.doAction('/404', state);
       }
     });
   }
 }
 
 function renderIfClient(data){
-  if(isClient && clientRederedOnce) this._render();
+  if(isClient && clientRederedOnce && this.path) this._render();
   return data;
 }
 /* TODO: check error handling for server rendering */
 function renderIfServer(result){
-  if(!isClient || !clientRederedOnce) {
+  if(this.path && (!isClient || !clientRederedOnce)) {
     this.end = function end(result){
       if(this._emitted) throw new Error("Action could not be finalized twice: " + actionName);
       this._emitted = true;
@@ -200,12 +346,22 @@ function createClient(options){
 	  	clientRederedOnce = true;
 	    return React.render(React.createElement(Handler, null), document.getElementById('content'));
 	  }
-	  var urlMatched = state.routes[state.routes.length - 1].path;
-	  if(options.Actions[urlMatched]) {
-	    options.Actions.doAction(urlMatched, state);
-	  } else {
-	    state._render();
-	  }
+    var urlsMatched = state.routes.map(function(route){
+    	return route.path;
+    }).reduce(function(res, path){
+    	if(options.Actions[path]) res.push(path);
+    	return res;
+    },[]);
+    
+    if(urlsMatched.length == 1) { //matched URL
+      options.Actions.doAction(urlsMatched[0], state);
+    } else if(urlsMatched.length > 1 && !clientRederedOnce){
+    	options.Actions.doActions(urlsMatched, state);
+    } else if(urlsMatched.length > 1 && clientRederedOnce){
+    	options.Actions.doAction(urlsMatched[urlsMatched.length - 1], state);
+    }else{
+      state._render(); // or Actions.doAction('/404', state);
+    }	  
 	});
 }
 
@@ -233,17 +389,42 @@ var Router = require('react-router');
 var $__0=      Router,Route=$__0.Route,RouteHandler=$__0.RouteHandler,Link=$__0.Link;
 var Actions = require('./Actions');
 var App = require('./App');
-var User = require('./User');
+var UsersList = require('./components/UsersList');
+var UserDetails = require('./components/UserDetails');
 var UserStore = require('./UserStore');
 var Promise = require('es6-promise').Promise;
 var FluxNot = require('./fluxnot');
 
 
+var UsersMock = [
+  {
+    id: 0,
+    name: "Bob",
+    age: 23,
+    bio: "stuff"
+  },
+  {
+    id: 1,
+    name: "Sally",
+    age: 33,
+    bio: "stuff1"
+  },
+  {
+    id: 2,
+    name: "John",
+    age: 22,
+    bio: "stuff2"
+  }
+];
+
 var isClient = true;
 
 var routes = (
   React.createElement(Route, {handler: App}, 
-    React.createElement(Route, {name: "user", path: "user/:userID", handler: User})
+    React.createElement(Route, {name: "users", path: "users", handler: UsersList}, 
+      React.createElement(Route, {name: "user", path: "user/:userId", handler: UserDetails})
+    )
+
   )
 );
 
@@ -261,9 +442,31 @@ Actions.use(log);
 Actions.use(FluxNot.client.renderIfClient);
 Actions.use(Actions.actionRouter);
 Actions.use(FluxNot.client.renderIfServer);
+Actions.catch(function(){
+  console.log("ERROR!!!:");
+  console.log(arguments)
+});
+
+Actions.create('/users').then(function doit1(){
+  var that = this;
+  return new Promise(function(fulfil, rej){
+    setTimeout( function(){
+      fulfil(UsersMock);
+    }, 400);
+  })
+});
+
+Actions.create('/users/user/:userId').then(function doit2(){
+  var that = this;
+  return new Promise(function(fulfil, rej){
+    setTimeout( function(){
+      fulfil(UsersMock[that.params.userId]);
+    }, 400);
+  })
+})
 
 
-
+/*
 Actions.create('/user/:userID').then(function doit(){
   var that = this;
 
@@ -273,6 +476,7 @@ Actions.create('/user/:userID').then(function doit(){
     }, 400);
   })
 });
+*/
 
 var isClient = true;
 try{
@@ -294,6 +498,8 @@ module.exports = function(){
     indexTemplate: require('fs').readFileSync("./index.html")
   });
 }
+
+
 
 /*
 
@@ -326,7 +532,7 @@ request('/multifetch', {fetch:['/api/test', '/api/test1','/api/test1?tes={baz}',
 /*
 API:
 */
-},{"./Actions":"/Users/edjafarov/work/fluxnot/Actions.js","./App":"/Users/edjafarov/work/fluxnot/App.js","./User":"/Users/edjafarov/work/fluxnot/User.js","./UserStore":"/Users/edjafarov/work/fluxnot/UserStore.js","./fluxnot":"/Users/edjafarov/work/fluxnot/fluxnot.js","es6-promise":"/Users/edjafarov/work/fluxnot/node_modules/es6-promise/dist/es6-promise.js","fs":"/Users/edjafarov/work/fluxnot/node_modules/browserify/lib/_empty.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/node_modules/browserify/lib/_empty.js":[function(require,module,exports){
+},{"./Actions":"/Users/edjafarov/work/fluxnot/Actions.js","./App":"/Users/edjafarov/work/fluxnot/App.js","./UserStore":"/Users/edjafarov/work/fluxnot/UserStore.js","./components/UserDetails":"/Users/edjafarov/work/fluxnot/components/UserDetails.js","./components/UsersList":"/Users/edjafarov/work/fluxnot/components/UsersList.js","./fluxnot":"/Users/edjafarov/work/fluxnot/fluxnot.js","es6-promise":"/Users/edjafarov/work/fluxnot/node_modules/es6-promise/dist/es6-promise.js","fs":"/Users/edjafarov/work/fluxnot/node_modules/browserify/lib/_empty.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/node_modules/browserify/lib/_empty.js":[function(require,module,exports){
 
 },{}],"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/buffer/index.js":[function(require,module,exports){
 /*!
@@ -24742,4 +24948,54 @@ module.exports = warning;
 },{"./emptyFunction":"/Users/edjafarov/work/fluxnot/node_modules/react/lib/emptyFunction.js","_process":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/process/browser.js"}],"/Users/edjafarov/work/fluxnot/node_modules/react/react.js":[function(require,module,exports){
 module.exports = require('./lib/React');
 
-},{"./lib/React":"/Users/edjafarov/work/fluxnot/node_modules/react/lib/React.js"}]},{},["/Users/edjafarov/work/fluxnot/main.js"]);
+},{"./lib/React":"/Users/edjafarov/work/fluxnot/node_modules/react/lib/React.js"}],"/Users/edjafarov/work/fluxnot/stores/UserStore.js":[function(require,module,exports){
+var Actions = require('../Actions');
+var Emitter = require('events').EventEmitter;
+
+var User = [];
+
+var UserStore = {
+	init: function(){
+		Actions.on('/users/user/:userId', this.updateUser);
+	},
+	updateUser: function(userData){
+		User = userData;
+		UserStore.emit('change', User);
+	},
+	get: function(){
+		return User;
+	}
+}; 
+
+UserStore.__proto__ = new Emitter();
+
+
+UserStore.init();
+
+module.exports = UserStore;
+},{"../Actions":"/Users/edjafarov/work/fluxnot/Actions.js","events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}],"/Users/edjafarov/work/fluxnot/stores/UsersStore.js":[function(require,module,exports){
+var Actions = require('../Actions');
+var Emitter = require('events').EventEmitter;
+
+var Users = [];
+
+var UsersStore = {
+	init: function(){
+		Actions.on('/users', this.updateUsers);
+	},
+	updateUsers: function(userData){
+		Users = userData;
+		UsersStore.emit('change', Users);
+	},
+	get: function(){
+		return Users;
+	}
+}; 
+
+UsersStore.__proto__ = new Emitter();
+
+
+UsersStore.init();
+
+module.exports = UsersStore;
+},{"../Actions":"/Users/edjafarov/work/fluxnot/Actions.js","events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}]},{},["/Users/edjafarov/work/fluxnot/main.js"]);

@@ -3,17 +3,42 @@ var Router = require('react-router');
 var { Route, RouteHandler, Link } = Router;
 var Actions = require('./Actions');
 var App = require('./App');
-var User = require('./User');
+var UsersList = require('./components/UsersList');
+var UserDetails = require('./components/UserDetails');
 var UserStore = require('./UserStore');
 var Promise = require('es6-promise').Promise;
 var FluxNot = require('./fluxnot');
 
 
+var UsersMock = [
+  {
+    id: 0,
+    name: "Bob",
+    age: 23,
+    bio: "stuff"
+  },
+  {
+    id: 1,
+    name: "Sally",
+    age: 33,
+    bio: "stuff1"
+  },
+  {
+    id: 2,
+    name: "John",
+    age: 22,
+    bio: "stuff2"
+  }
+];
+
 var isClient = true;
 
 var routes = (
   <Route handler={App}>
-    <Route name="user" path="user/:userID" handler={User}/>
+    <Route name="users" path="users" handler={UsersList}>
+      <Route name="user" path="user/:userId" handler={UserDetails} />
+    </Route>
+
   </Route>
 );
 
@@ -31,9 +56,31 @@ Actions.use(log);
 Actions.use(FluxNot.client.renderIfClient);
 Actions.use(Actions.actionRouter);
 Actions.use(FluxNot.client.renderIfServer);
+Actions.catch(function(){
+  console.log("ERROR!!!:");
+  console.log(arguments)
+});
+
+Actions.create('/users').then(function doit1(){
+  var that = this;
+  return new Promise(function(fulfil, rej){
+    setTimeout( function(){
+      fulfil(UsersMock);
+    }, 400);
+  })
+});
+
+Actions.create('/users/user/:userId').then(function doit2(){
+  var that = this;
+  return new Promise(function(fulfil, rej){
+    setTimeout( function(){
+      fulfil(UsersMock[that.params.userId]);
+    }, 400);
+  })
+})
 
 
-
+/*
 Actions.create('/user/:userID').then(function doit(){
   var that = this;
 
@@ -43,6 +90,7 @@ Actions.create('/user/:userID').then(function doit(){
     }, 400);
   })
 });
+*/
 
 var isClient = true;
 try{
@@ -64,6 +112,8 @@ module.exports = function(){
     indexTemplate: require('fs').readFileSync("./index.html")
   });
 }
+
+
 
 /*
 

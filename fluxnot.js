@@ -18,26 +18,34 @@ function createServerMiddleware(options){
   return function renderReactServer(req, res, next){
     Router.run(options.routes, req.originalUrl, function (Handler, state) {
       state._render = function(){
+      	console.log("RENDER");
         var renderedApp = React.renderToString(<Handler/>);
         res.end(indexTemplate.replace('<body>','<body><div id="content">' + renderedApp + '<div>'));
       }    
-      var urlMatched = state.routes[state.routes.length - 1].path;
-      if(options.Actions[urlMatched]) { //matched URL
-        options.Actions.doAction(urlMatched, state);
-      } else { //do not match any URL (404)
-        next(); // or Actions.doAction('/404', state);
+      var urlsMatched = state.routes.map(function(route){
+      	return route.path;
+      }).reduce(function(res, path){
+      	if(options.Actions[path]) res.push(path);
+      	return res;
+      },[]);
+      if(urlsMatched.length == 1) { //matched URL
+        options.Actions.doAction(urlsMatched[0], state);
+      } else if(urlsMatched.length > 1){
+      	options.Actions.doActions(urlsMatched, state);
+      }else{
+        state._render(); // or Actions.doAction('/404', state);
       }
     });
   }
 }
 
 function renderIfClient(data){
-  if(isClient && clientRederedOnce) this._render();
+  if(isClient && clientRederedOnce && this.path) this._render();
   return data;
 }
 /* TODO: check error handling for server rendering */
 function renderIfServer(result){
-  if(!isClient || !clientRederedOnce) {
+  if(this.path && (!isClient || !clientRederedOnce)) {
     this.end = function end(result){
       if(this._emitted) throw new Error("Action could not be finalized twice: " + actionName);
       this._emitted = true;
@@ -61,12 +69,22 @@ function createClient(options){
 	  	clientRederedOnce = true;
 	    return React.render(<Handler/>, document.getElementById('content'));
 	  }
-	  var urlMatched = state.routes[state.routes.length - 1].path;
-	  if(options.Actions[urlMatched]) {
-	    options.Actions.doAction(urlMatched, state);
-	  } else {
-	    state._render();
-	  }
+    var urlsMatched = state.routes.map(function(route){
+    	return route.path;
+    }).reduce(function(res, path){
+    	if(options.Actions[path]) res.push(path);
+    	return res;
+    },[]);
+    
+    if(urlsMatched.length == 1) { //matched URL
+      options.Actions.doAction(urlsMatched[0], state);
+    } else if(urlsMatched.length > 1 && !clientRederedOnce){
+    	options.Actions.doActions(urlsMatched, state);
+    } else if(urlsMatched.length > 1 && clientRederedOnce){
+    	options.Actions.doAction(urlsMatched[urlsMatched.length - 1], state);
+    }else{
+      state._render(); // or Actions.doAction('/404', state);
+    }	  
 	});
 }
 
