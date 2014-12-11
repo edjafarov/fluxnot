@@ -56,10 +56,7 @@ Actions.use(log);
 Actions.use(FluxNot.client.renderIfClient);
 Actions.use(Actions.actionRouter);
 Actions.use(FluxNot.client.renderIfServer);
-Actions.catch(function(){
-  console.log("ERROR!!!:");
-  console.log(arguments)
-});
+
 
 Actions.create('/users').then(function doit1(){
   var that = this;
@@ -78,7 +75,50 @@ Actions.create('/users/user/:userId').then(function doit2(){
     }, 400);
   })
 })
+function isRequired(name){
+  return function(data){
 
+    if(!data[name] || data[name] == ""){
+      if(!this.errors) this.errors = []
+      this.errors.push({varName: name, type:"required"});
+    }
+    return data;
+  }
+}
+
+function isLonger(name){
+  return {
+    then: function(then){
+      return function(data){
+        if(data[name] && data[name].length < then){
+          if(!this.errors) this.errors = []
+          this.errors.push({varName: name, type:"length is not ehough"});
+        }
+        return data;       
+      }
+    }
+  }
+}
+
+function submit(data){
+  this.emit('users:user:add', data);
+  return data;
+}
+
+function ifValidationRejected(data){
+  if(this.errors) return Promise.reject(this.errors);
+  return data;
+}
+
+Actions.create('submit:newUser').then(function(data){
+  delete data.errors;
+  return data;
+}).then(isRequired('name'))
+.then(isLonger('name').then(5))
+.then(isRequired('id'))
+.then(isRequired('age'))
+.then(ifValidationRejected)
+.then(submit);
 
 /*
 Actions.create('/user/:userID').then(function doit(){

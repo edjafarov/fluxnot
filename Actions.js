@@ -6,11 +6,18 @@ var Actions = {
   _end: function end(result){
     if(this._emitted) throw new Error("Action could not be finalized twice: " + actionName);
     this._emitted = true;
+    console.log(this.actionName + ":END", result);
     this.emit(this.actionName, result);
+  },
+  _catch: function catchfun(error){
+    if(this._emitted) throw new Error("Action could not be finalized/catched twice: " + actionName);
+    this._emitted = true;
+    console.log(this.actionName + ":rejected:END", error);
+    this.emit(this.actionName + ":rejected", error);
   },
   actionRouter: "actionRouter",
   _sequence: [],
-  _catch: null,
+
   use: function(){
     Actions._sequence.push([].slice.call(arguments));
   },
@@ -34,12 +41,18 @@ var Actions = {
     }
     sequence.push([function finish(){
       this.end.apply(this, arguments);
-    }]);    
+    }]);
+    function catchfinal(){
+      this.catch.apply(this, arguments);
+    }
+    catchfinal.isCatch = true;
+    sequence.push([catchfinal]);    
     
     Actions[actionName] = function(params, data){
       
       params._emitted = false;
       params.end = Actions._end;
+      params.catch = Actions._catch;
 
       params.emit = Actions.emit.bind(Actions);
       params.actionName = actionName;
@@ -154,6 +167,7 @@ var Actions = {
     }, Promise.resolve(data));
   }  
 };
+
 
 Actions.__proto__ = new Emitter();
 module.exports = Actions;

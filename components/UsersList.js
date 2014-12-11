@@ -3,6 +3,7 @@ var Router = require('react-router');
 var { Route, RouteHandler, Link } = Router;
 var UsersStore = require('../stores/UsersStore');
 var UserItem = require('./UserItem');
+var NewUserForm = require('./NewUserForm');
 
 module.exports = React.createClass({
   mixins: [ Router.State ],
@@ -24,6 +25,7 @@ module.exports = React.createClass({
         })}
         </ul>
         <RouteHandler/>
+        <NewUserForm/>
       </div>
     );
   }
