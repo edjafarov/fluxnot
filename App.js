@@ -6,7 +6,9 @@ var UsersList = require('./components/UsersList');
 module.exports = React.createClass({
   render: function () {
     return (
-      <div><Link to="users">Open Users</Link>
+      <div>
+      	<Link to="/">app</Link><br/>
+      	<Link to="users">Open Users</Link>
         <RouteHandler/>
       </div>
     );

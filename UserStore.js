@@ -1,11 +1,11 @@
-var Actions = require('./Actions');
+//var Actions = require('./Actions');
 var Emitter = require('events').EventEmitter;
 
 var User = {};
 
 var UserStore = {
 	init: function(){
-		Actions.on('/user/:userID', this.updateUser);
+		//Actions.on('/user/:userID', this.updateUser);
 	},
 	updateUser: function(userData){
 		User = userData;

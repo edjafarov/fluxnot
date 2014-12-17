@@ -14,6 +14,7 @@ module.exports = React.createClass({
     UsersStore.on('change', this.onUsersChage);
   },
   onUsersChage: function(users){
+    if(!this.isMounted()) return;
   	this.setState({users:users})
   },
   render: function () {

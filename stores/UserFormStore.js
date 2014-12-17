@@ -1,13 +1,13 @@
-var Actions = require('../Actions');
+
 var Emitter = require('events').EventEmitter;
 
 var User = {};
 
 var UserFormStore = {
 	init: function(){
-		Actions.on('submit:newUser', this.updateUserErrors);
-		Actions.on('submit:newUser:rejected', this.updateUserErrors);
-		Actions.on('/users/user/:userId/edit', this.updateUserToEdit);
+		//Actions.on('submit:newUser', this.updateUserErrors);
+		//Actions.on('submit:newUser:rejected', this.updateUserErrors);
+		//Actions.on('/users/user/:userId/edit', this.updateUserToEdit);
 	},
 	updateUserErrors: function(errorData){
 		UserFormStore.emit('errors', errorData);

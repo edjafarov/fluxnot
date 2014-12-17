@@ -1,180 +1,44 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({"/Users/edjafarov/work/fluxnot/Actions.js":[function(require,module,exports){
-var Promise = require('es6-promise').Promise;
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({"/Users/edjafarov/work/fluxnot/ActionsEmitter.js":[function(require,module,exports){
 var Emitter = require('events').EventEmitter;
 
+module.exports = new Emitter();
+},{"events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}],"/Users/edjafarov/work/fluxnot/ActionsRouter.js":[function(require,module,exports){
+var Promise = require('es6-promise').Promise;
+var PromisePiper = require('./PromisePiper');
 
-var Actions = {
-  _end: function end(result){
-    if(this._emitted) throw new Error("Action could not be finalized twice: " + actionName);
-    this._emitted = true;
-    console.log(this.actionName + ":END", result);
-    this.emit(this.actionName, result);
-  },
-  _catch: function catchfun(error){
-    if(this._emitted) throw new Error("Action could not be finalized/catched twice: " + actionName);
-    this._emitted = true;
-    console.log(this.actionName + ":rejected:END", error);
-    this.emit(this.actionName + ":rejected", error);
-  },
-  actionRouter: "actionRouter",
-  _sequence: [],
 
-  use: function(){
-    Actions._sequence.push([].slice.call(arguments));
-  },
-  catch: function(fn){
-    fn.isCatch = true;
-    Actions._sequence.push([fn]);
-  },  
-  create: function(actionName){
-    var sequence = [].concat(Actions._sequence);
-    var actionRouterIndex = -1;
-    var actionChainLength = 0;
-    var isStrict = false;
+function getRouter(){
+  var routes = {};
+  var actionsRouter = function(data){
+    var actionNames = this.actionName instanceof Array?this.actionName:[this.actionName];
+    var that = this;
+    var promises = actionNames.reduce(function(promises, actionName){
+      if(routes[actionName]) promises.push(routes[actionName].call(that, data));
+      return promises; 
+    }, []);
+    return promises.length>0?Promise.all(promises):Promise.resolve(data);
+  }
 
-    sequence.forEach(function(args, i){
-      if(args[0] == Actions.actionRouter) actionRouterIndex = i;
-    });
-    if(!!~actionRouterIndex) {
-      sequence.splice(actionRouterIndex, 1);
-    } else {
-      actionRouterIndex = sequence.length -1;
-    }
-    sequence.push([function finish(){
-      this.end.apply(this, arguments);
-    }]);
-    function catchfinal(){
-      this.catch.apply(this, arguments);
-    }
-    catchfinal.isCatch = true;
-    sequence.push([catchfinal]);    
-    
-    Actions[actionName] = function(params, data){
-      
-      params._emitted = false;
-      params.end = Actions._end;
-      params.catch = Actions._catch;
-
-      params.emit = Actions.emit.bind(Actions);
-      params.actionName = actionName;
-
-      var res = sequence.reduce(function(dostuff, func){
-        func = func.map(function(funcArg){
-          var isCatch = funcArg.isCatch;
-          var res = funcArg.bind(params);
-          res.isCatch = isCatch;
-          return res;
-        });
-        if(func[0] && func[0].isCatch) return dostuff.catch.apply(dostuff, func);
-        return dostuff.then.apply(dostuff, func);
-      }, Promise.resolve(data));
-    };
-
-    Actions[actionName].getSequence = function getSequence() {
-      return sequence.slice(actionRouterIndex, actionRouterIndex + actionChainLength);
-    }
-
-    var self = {
-      then: function(){
-        sequence.splice(actionRouterIndex + actionChainLength, 0, [].slice.call(arguments));
-        actionChainLength++;
-        return self;
-      },
-      catch: function(fn){
-        fn.isCatch = true;
-        sequence.splice(actionRouterIndex + actionChainLength, 0, [fn]);
-        actionChainLength++;
-        return self;
-      },
-      strict: function(strict){
-        isStrict = strict;
-      }
-    };
-    return self;
-  },
-  
-  doAction: function(actionName){
-    var arg = [].slice.call(arguments);
-		Actions[arg.shift()].apply(this, arg);
-	},
-
-  doActions: function(actionNames, params, data){
-    var sequence = [].concat(Actions._sequence);
-    var actionRouterIndex = -1;
-    var actionChainLength = 0;
-    var isStrict = false;
-
-    sequence.forEach(function(args, i){
-      if(args[0] == Actions.actionRouter) actionRouterIndex = i;
-    });
-    if(!!~actionRouterIndex) {
-      sequence.splice(actionRouterIndex, 1);
-    } else {
-      actionRouterIndex = sequence.length -1;
-    }
-    sequence.push([function finish(){
-      this.end.apply(this, arguments);
-    }]);
-    params._emitted = false;
-    params.end = Actions._end;
-    params.emit = Actions.emit.bind(Actions);
-    params.actionName = actionNames[actionNames.length - 1];   
-    sequence = sequence.map(function(handlers){
-      return handlers.map(function(funcArg){
-        var isCatch = funcArg.isCatch;
-        var res = funcArg.bind(params);
-        res.isCatch = isCatch;        
-        return res;
-      })
-    });
-
-    var subSequences = [];
-    actionNames.forEach(function(actionName, i){
-      var specificParams = {};
-
-      specificParams.__proto__ = params;
-
-      var subSequence = Actions[actionName].getSequence();
-
-      specificParams._emitted = false;
-      specificParams.end = Actions._end;
-
-      specificParams.emit = Actions.emit.bind(Actions);
-      specificParams.actionName = actionName;      
-      subSequence = subSequence.map(function(handlers){
-        return handlers.map(function(funcArg){
-          var isCatch = funcArg.isCatch;
-          var res = funcArg.bind(specificParams);
-          res.isCatch = isCatch;        
-          return res;          
-        });
-      });
-
-      if(actionNames.length - 1 != i) {
-        subSequence.push([function(result){
-          this.end.apply(this, arguments);
-          return result;
-        }.bind(specificParams)])
-      }
-      subSequences = subSequences.concat(subSequence);
-
-    });
-
-    sequence.splice.apply(sequence, [actionRouterIndex + actionChainLength, 0].concat(subSequences));
-
-    var res = sequence.reduce(function(dostuff, func){
-      if(func[0] && func[0].isCatch) return dostuff.catch.apply(dostuff, func);
-      return dostuff.then.apply(dostuff, func);
-    }, Promise.resolve(data));
+  actionsRouter.create = function(name){
+    routes[name] = PromisePiper();
+    return routes[name];
   }  
-};
+  return actionsRouter;
+}
+
+module.exports = getRouter;
 
 
-Actions.__proto__ = new Emitter();
-module.exports = Actions;
 
 
-},{"es6-promise":"/Users/edjafarov/work/fluxnot/node_modules/es6-promise/dist/es6-promise.js","events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}],"/Users/edjafarov/work/fluxnot/App.js":[function(require,module,exports){
+
+
+
+
+
+
+
+},{"./PromisePiper":"/Users/edjafarov/work/fluxnot/PromisePiper.js","es6-promise":"/Users/edjafarov/work/fluxnot/node_modules/es6-promise/dist/es6-promise.js"}],"/Users/edjafarov/work/fluxnot/App.js":[function(require,module,exports){
 var React = require('react');
 var Router = require('react-router');
 var $__0=      Router,Route=$__0.Route,RouteHandler=$__0.RouteHandler,Link=$__0.Link;
@@ -183,21 +47,96 @@ var UsersList = require('./components/UsersList');
 module.exports = React.createClass({displayName: 'exports',
   render: function () {
     return (
-      React.createElement("div", null, React.createElement(Link, {to: "users"}, "Open Users"), 
+      React.createElement("div", null, 
+      	React.createElement(Link, {to: "/"}, "app"), React.createElement("br", null), 
+      	React.createElement(Link, {to: "users"}, "Open Users"), 
         React.createElement(RouteHandler, null)
       )
     );
   }
 });
-},{"./components/UsersList":"/Users/edjafarov/work/fluxnot/components/UsersList.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/UserStore.js":[function(require,module,exports){
-var Actions = require('./Actions');
+},{"./components/UsersList":"/Users/edjafarov/work/fluxnot/components/UsersList.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/PromisePiper.js":[function(require,module,exports){
+var Promise = require('es6-promise').Promise;
+
+function PromisePiper(){
+  var sequence = []
+
+  var result = function(data){
+    var chain = [].concat(sequence);
+    chain = chain.map(bindTo(this).bindIt); 
+    return doit(chain, data);
+  }
+  
+  result.then = function(){
+    sequence.push([].slice.call(arguments));
+    return result;
+  }
+  result.catch = function(fn){
+    fn.isCatch = true;
+    sequence.push([fn]);
+    return result;
+  }
+  return result;
+}
+
+function doit(sequence, data){
+  return sequence.reduce(function(doWork, funcArr){
+    if(funcArr[0] && funcArr[0].isCatch) return doWork.catch.apply(doWork, funcArr); //do catch or
+    return doWork.then.apply(doWork, funcArr);
+  }, Promise.resolve(data))
+}
+
+function bindTo(that){
+  return {
+    bindIt: function bindIt(handlers){
+      return handlers.map(function(argFunc){
+        var newArgFunc = argFunc.bind(that);
+        Object.keys(argFunc).reduce(function(funObj, key){
+          funObj[key] = argFunc[key]
+        }, newArgFunc); 
+        return newArgFunc; 
+      })
+    }
+  }
+}
+
+module.exports = PromisePiper;
+
+/*
+var pipe1 = PromisePiper()
+.then(function(data){
+  console.log(data + "*2");
+  return data * 2;
+})
+.then(function(data){
+  console.log(data + "+1");
+  return data + 1;
+})
+.then(function(data){
+  return new Promise(function(resolve, reject){
+    console.log("thinking...");
+    setTimeout(function(){
+
+      resolve(data)
+    }, 500);
+  })
+})
+.then(function(data){
+  console.log("=" + data)
+  console.log(data)
+});
+
+pipe1(5)*/
+
+},{"es6-promise":"/Users/edjafarov/work/fluxnot/node_modules/es6-promise/dist/es6-promise.js"}],"/Users/edjafarov/work/fluxnot/UserStore.js":[function(require,module,exports){
+//var Actions = require('./Actions');
 var Emitter = require('events').EventEmitter;
 
 var User = {};
 
 var UserStore = {
 	init: function(){
-		Actions.on('/user/:userID', this.updateUser);
+		//Actions.on('/user/:userID', this.updateUser);
 	},
 	updateUser: function(userData){
 		User = userData;
@@ -214,11 +153,11 @@ UserStore.__proto__ = new Emitter();
 UserStore.init();
 
 module.exports = UserStore;
-},{"./Actions":"/Users/edjafarov/work/fluxnot/Actions.js","events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}],"/Users/edjafarov/work/fluxnot/components/NewUserForm.js":[function(require,module,exports){
+},{"events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}],"/Users/edjafarov/work/fluxnot/components/NewUserForm.js":[function(require,module,exports){
 var React = require('react');
 var Router = require('react-router');
 var UserFormStore = require('../stores/UserFormStore');
-var Actions = require('../Actions');
+//var Actions = require('../Actions');
 
 module.exports = React.createClass({displayName: 'exports',
   mixins: [ React.addons.LinkedStateMixin ],
@@ -232,7 +171,7 @@ module.exports = React.createClass({displayName: 'exports',
   	this.setState({errors: data});
   },
   submit: function(){
-		Actions.doAction('submit:newUser', {}, this.state);
+		//Actions.doAction('submit:newUser', {}, this.state);
   },
   render: function () {
   	
@@ -253,7 +192,7 @@ module.exports = React.createClass({displayName: 'exports',
     );
   }
 });
-},{"../Actions":"/Users/edjafarov/work/fluxnot/Actions.js","../stores/UserFormStore":"/Users/edjafarov/work/fluxnot/stores/UserFormStore.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/components/UserDetails.js":[function(require,module,exports){
+},{"../stores/UserFormStore":"/Users/edjafarov/work/fluxnot/stores/UserFormStore.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/components/UserDetails.js":[function(require,module,exports){
 var React = require('react');
 var Router = require('react-router');
 var UserStore = require('../stores/UserStore');
@@ -268,6 +207,7 @@ module.exports = React.createClass({displayName: 'exports',
     UserStore.on('change', this.onUserChage);
   },
   onUserChage: function(user){
+    if(!this.isMounted()) return;
   	this.setState({user:user});
   },
   render: function () {
@@ -313,6 +253,7 @@ module.exports = React.createClass({displayName: 'exports',
     UsersStore.on('change', this.onUsersChage);
   },
   onUsersChage: function(users){
+    if(!this.isMounted()) return;
   	this.setState({users:users})
   },
   render: function () {
@@ -333,37 +274,112 @@ module.exports = React.createClass({displayName: 'exports',
 var Router = require('react-router');
 var Route = Router.Route;
 var React = require('react');
-var isClient = false;
+
+var isClient = true;
+try{
+  document 
+}catch(e){
+  isClient = false;
+}
 /* need routes to be defined */
 // index template need to be defined
 // static middleware should be enabled before
 // need actions to be defined
 // client Main should export routes and actions
 
+function getClientHandler(options){
+	if(options.indexTemplate) options.indexTemplate = options.indexTemplate.toString();
+	if(!options.routes) throw new Error("routes option should be defined");
+
+	var routerHandler;
+	function route(url, cb){
+		if(!routerHandler){
+			if(cb) return cb("routerHandler is not defined");
+			throw new Error("routerHandler is not defined");
+		}
+		
+		Router.run(options.routes, url || Router.HistoryLocation ,function (Handler, state) {
+		  if(!cb){
+			  state._render = function(){
+			  	result.clientRenderedOnce = true;
+			    return React.render(React.createElement(Handler, null), document.getElementById('content'));
+			  }
+			} else {
+				state._render = function(){
+					if(!options.indexTemplate) throw new Error("indexTemplate option should be defined");
+          var renderedApp = React.renderToString(React.createElement(Handler, null));
+	        cb(null, options.indexTemplate.replace('<body>','<body><div id="content">' + renderedApp + '<div>'));
+				}
+			}
+			routerHandler.call(state);
+		});
+	}
+	var result = {
+		doOnRoute: function(fn){
+			routerHandler = fn;
+		},
+		middleware: function(req, res, next){
+			route(req.originalUrl, function(err, html){
+				if(err) return next(err);
+				res.end(html)
+			});
+		},
+		route: route,
+		clientRenderedOnce: false
+	}
+	return result;
+}
+
+getClientHandler.isClient = isClient;
+getClientHandler.isServer = !isClient;
+
+module.exports = getClientHandler;
+
+
+/*{
+	isClient: isClient,
+	server: {
+		doOnRoute: createServerMiddleware.doOnRoute,
+		createServer: createServerMiddleware,
+		multifetchMiddleware: multifetchMiddleware
+	},
+	client: {
+		doOnRoute: createClient.doOnRoute,
+		createClient: createClient,
+		renderIfServer: renderIfServer,
+		renderIfClient: renderIfClient
+	}
+}
+
+
+/*
 function createServerMiddleware(options){
 	isClient = false;
 	if(!options.indexTemplate) throw new Error("indexTemplate option should be defined");
 	if(!options.routes) throw new Error("routes option should be defined");
-	if(!options.Actions) throw new Error("Actions option should be defined");
+
+	var doArray = createServerMiddleware.doArray;
+	options.routes.doOnRoute = function(func){
+		doArray.push(func);
+	}
 
   var indexTemplate = options.indexTemplate.toString();
   return function renderReactServer(req, res, next){
     Router.run(options.routes, req.originalUrl, function (Handler, state) {
       state._render = function(){
       	console.log("RENDER");
-        var renderedApp = React.renderToString(React.createElement(Handler, null));
+        var renderedApp = React.renderToString(<Handler/>);
         res.end(indexTemplate.replace('<body>','<body><div id="content">' + renderedApp + '<div>'));
       }    
       var urlsMatched = state.routes.map(function(route){
       	return route.path;
-      }).reduce(function(res, path){
-      	if(options.Actions[path]) res.push(path);
-      	return res;
-      },[]);
-      if(urlsMatched.length == 1) { //matched URL
-        options.Actions.doAction(urlsMatched[0], state);
-      } else if(urlsMatched.length > 1){
-      	options.Actions.doActions(urlsMatched, state);
+      });
+
+      if(urlsMatched.length > 0 && doArray.length > 0) { //matched URL
+      	doArray.forEach(function(func){
+					state.actionName = urlsMatched;
+      		func.call(state);
+      	});
       }else{
         state._render(); // or Actions.doAction('/404', state);
       }
@@ -371,11 +387,18 @@ function createServerMiddleware(options){
   }
 }
 
+createServerMiddleware.doArray = [];
+
+createServerMiddleware.doOnRoute = function(func){
+	createServerMiddleware.doArray.push(func);
+}
+
+
 function renderIfClient(data){
   if(isClient && clientRederedOnce && this.path) this._render();
   return data;
 }
-/* TODO: check error handling for server rendering */
+/* TODO: check error handling for server rendering *1/
 function renderIfServer(result){
   if(this.path && (!isClient || !clientRederedOnce)) {
     this.end = function end(result){
@@ -394,55 +417,45 @@ var clientRederedOnce = false;
 function createClient(options){
 	isClient = true;
 	if(!options.routes) throw new Error("routes option should be defined");
-	if(!options.Actions) throw new Error("Actions option should be defined");
+	var doArray = createClient.doArray;
+
 //, Router.HistoryLocation
-	Router.run(options.routes,Router.HistoryLocation ,function (Handler, state) {
+	Router.run(options.routes, Router.HistoryLocation ,function (Handler, state) {
+		console.log("ROUTER", arguments)
 	  state._render = function(){
 	  	clientRederedOnce = true;
-	    return React.render(React.createElement(Handler, null), document.getElementById('content'));
+	    return React.render(<Handler/>, document.getElementById('content'));
 	  }
     var urlsMatched = state.routes.map(function(route){
     	return route.path;
-    }).reduce(function(res, path){
-    	if(options.Actions[path]) res.push(path);
-    	return res;
-    },[]);
-    
-    if(urlsMatched.length == 1) { //matched URL
-      options.Actions.doAction(urlsMatched[0], state);
-    } else if(urlsMatched.length > 1 && !clientRederedOnce){
-    	options.Actions.doActions(urlsMatched, state);
-    } else if(urlsMatched.length > 1 && clientRederedOnce){
-    	options.Actions.doAction(urlsMatched[urlsMatched.length - 1], state);
+    });
+    console.log(urlsMatched.length > 0 , doArray.length > 0 ,clientRederedOnce)
+		if(urlsMatched.length > 0 && doArray.length > 0 && !clientRederedOnce) { //matched URL
+    	doArray.forEach(function(func){
+				state.actionName = urlsMatched;
+    		func.call(state);
+    	});
+    } else if(urlsMatched.length > 0 && doArray.length > 0 && clientRederedOnce){
+    	doArray.forEach(function(func){
+				state.actionName = urlsMatched[urlsMatched.length - 1];
+    		func.call(state);
+    	});
     }else{
       state._render(); // or Actions.doAction('/404', state);
     }	  
 	});
 }
+createClient.doArray = [];
 
-function multifetchMiddleware(){
-
+createClient.doOnRoute = function(func){
+	createClient.doArray.push(func);
 }
-
-
-
-module.exports ={
-	isClient: isClient,
-	server: {
-		createServer: createServerMiddleware,
-		multifetchMiddleware: multifetchMiddleware
-	},
-	client: {
-		createClient: createClient,
-		renderIfServer: renderIfServer,
-		renderIfClient: renderIfClient
-	}
-}
+*/
 },{"react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/main.js":[function(require,module,exports){
 var React = require('react');
 var Router = require('react-router');
 var $__0=      Router,Route=$__0.Route,RouteHandler=$__0.RouteHandler,Link=$__0.Link;
-var Actions = require('./Actions');
+//var Actions = require('./Actions');
 var App = require('./App');
 var UsersList = require('./components/UsersList');
 var UserDetails = require('./components/UserDetails');
@@ -489,33 +502,13 @@ function log(data){
     console.log(["Url Action, path:", this.path].join(''));
     if(this.query) console.log(["            query:", JSON.stringify(this.query)].join(''));
     if(this.params) console.log(["            params:", JSON.stringify(this.params)].join(''));
+  } else {
+    console.log("Log:", data, this);
   }
   return data;
 }
 
-Actions.use(log);
-Actions.use(FluxNot.client.renderIfClient);
-Actions.use(Actions.actionRouter);
-Actions.use(FluxNot.client.renderIfServer);
 
-
-Actions.create('/users').then(function doit1(){
-  var that = this;
-  return new Promise(function(fulfil, rej){
-    setTimeout( function(){
-      fulfil(UsersMock);
-    }, 400);
-  })
-});
-
-Actions.create('/users/user/:userId').then(function doit2(){
-  var that = this;
-  return new Promise(function(fulfil, rej){
-    setTimeout( function(){
-      fulfil(UsersMock[that.params.userId]);
-    }, 400);
-  })
-})
 function isRequired(name){
   return function(data){
 
@@ -551,6 +544,7 @@ function ifValidationRejected(data){
   return data;
 }
 
+/*
 Actions.create('submit:newUser').then(function(data){
   delete data.errors;
   return data;
@@ -560,19 +554,121 @@ Actions.create('submit:newUser').then(function(data){
 .then(isRequired('age'))
 .then(ifValidationRejected)
 .then(submit);
-
-/*
-Actions.create('/user/:userID').then(function doit(){
-  var that = this;
-
-  return new Promise(function(fulfil, rej){
-    setTimeout( function(){
-      fulfil({uid: that.params.userID, age: that.query.showAge?33:''});
-    }, 400);
-  })
-});
 */
 
+var PromisePiper = require("./PromisePiper");
+var ActionsRouter = require("./ActionsRouter")
+var ActionsEmitter = require("./ActionsEmitter");
+
+function bindEmitter(ActionsEmitter){
+  return function (data){
+    this.emit = ActionsEmitter.emit.bind(ActionsEmitter);
+    return data;
+  }
+}
+
+
+var doActions = ActionsRouter();
+
+
+doActions.create('/users')
+.then(function(data){
+  var that = this;
+  return new Promise(function(fulfil, rej){
+    setTimeout( function(){
+      fulfil(UsersMock);
+    }, 400);
+  })
+}).then(function(response){
+  this.emit("users:get", response);
+  return response;
+})
+
+
+doActions.create('/users/user/:userId')
+.then(function(data){
+  var that = this;
+  return new Promise(function(fulfil, rej){
+    setTimeout( function(){
+      fulfil(UsersMock[that.params.userId]);
+    }, 400);
+  })
+}).then(function(response){
+  this.emit("user:get", response);
+  return response;
+})
+
+var onRoute = PromisePiper()
+.then(log)
+.then(bindEmitter(ActionsEmitter)) // to be able to do centralized this.emit
+.then(renderIfClient)
+.then(doActions)
+.then(renderIfServer)
+.then(log)
+.catch(function(){
+  console.log(arguments, "ERROR!!!!");
+})
+
+
+var clientRederedOnce = false;
+
+function renderIfClient(data){
+  console.log(FluxNot.isClient && clientRederedOnce && this.path);
+  if(isClient && clientRederedOnce && this.path) {
+    this._render();
+    clientRederedOnce = true;
+  }
+  return data;
+}
+
+function renderIfServer(result){
+  if(this.path && (!FluxNot.isClient || !clientRederedOnce)) {
+    if(this._emitted) throw new Error("Action could not be finalized twice: " + actionName);
+    this._emitted = true;
+    this._render();
+  }
+  return result;
+}
+
+
+var appCfg = {
+  routes: routes
+};
+
+//Read Template
+if(FluxNot.isServer) appCfg.indexTemplate = require('fs').readFileSync("./index.html")
+
+var app = FluxNot(appCfg);
+
+
+app.doOnRoute(function(){
+  var urlsMatched = this.routes.map(function(route){
+    return route.path;
+  });
+
+  if(urlsMatched.length > 0 && !app.clientRenderedOnce){
+    this.actionName = urlsMatched;
+    onRoute.call(this);
+  } else if (urlsMatched.length > 0 && app.clientRenderedOnce) {
+    console.log(onRoute)
+    this.actionName = urlsMatched[urlsMatched.length - 1];;
+    onRoute.call(this);
+  } else {
+    this._render()
+  }
+});
+
+if(FluxNot.isClient) app.route();
+
+module.exports = function(){
+  return app.middleware;
+}
+
+
+/*
+FluxNot.client.doOnRoute(onRoute)
+
+var client;
 var isClient = true;
 try{
   document 
@@ -581,21 +677,51 @@ try{
 }
 if(isClient){
   FluxNot.client.createClient({
-    routes: routes,
-    Actions: Actions
+    routes: routes
   });
 }
 
+
 module.exports = function(){
+  FluxNot.server.doOnRoute(onRoute);
+
   return FluxNot.server.createServer({
     routes: routes,
-    Actions: Actions,
     indexTemplate: require('fs').readFileSync("./index.html")
   });
 }
 
 
 
+
+/*
+var actionsRouter = function(data){
+  var actionName = this.actionName;
+  actionsRouter._routes[actionName].bind(this);
+  return actionsRouter._routes[actionName](data)
+}
+
+actionsRouter.create = function(name){
+  actionsRouter._routes[name] = PromisePiper();
+  return actionsRouter._routes[name];
+}
+
+actionsRouter.routeExists = function(){
+  
+}
+
+actionsRouter.create('/user/:id').then().then().then();
+actionsRouter.create('/user/:id/documents').then().then().then();
+actionsRouter.create('/user/:id/documents/:id').then().then().then();
+
+var onRouteActions = PromisePiper()
+.then(log)
+.then(renderIfClient)
+.then(actionsRouter)
+.then(renderIfServer)
+.catch(showCommonError);
+
+routes.pipe(onRouteActions)
 /*
 
 
@@ -627,7 +753,7 @@ request('/multifetch', {fetch:['/api/test', '/api/test1','/api/test1?tes={baz}',
 /*
 API:
 */
-},{"./Actions":"/Users/edjafarov/work/fluxnot/Actions.js","./App":"/Users/edjafarov/work/fluxnot/App.js","./UserStore":"/Users/edjafarov/work/fluxnot/UserStore.js","./components/UserDetails":"/Users/edjafarov/work/fluxnot/components/UserDetails.js","./components/UsersList":"/Users/edjafarov/work/fluxnot/components/UsersList.js","./fluxnot":"/Users/edjafarov/work/fluxnot/fluxnot.js","es6-promise":"/Users/edjafarov/work/fluxnot/node_modules/es6-promise/dist/es6-promise.js","fs":"/Users/edjafarov/work/fluxnot/node_modules/browserify/lib/_empty.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/node_modules/browserify/lib/_empty.js":[function(require,module,exports){
+},{"./ActionsEmitter":"/Users/edjafarov/work/fluxnot/ActionsEmitter.js","./ActionsRouter":"/Users/edjafarov/work/fluxnot/ActionsRouter.js","./App":"/Users/edjafarov/work/fluxnot/App.js","./PromisePiper":"/Users/edjafarov/work/fluxnot/PromisePiper.js","./UserStore":"/Users/edjafarov/work/fluxnot/UserStore.js","./components/UserDetails":"/Users/edjafarov/work/fluxnot/components/UserDetails.js","./components/UsersList":"/Users/edjafarov/work/fluxnot/components/UsersList.js","./fluxnot":"/Users/edjafarov/work/fluxnot/fluxnot.js","es6-promise":"/Users/edjafarov/work/fluxnot/node_modules/es6-promise/dist/es6-promise.js","fs":"/Users/edjafarov/work/fluxnot/node_modules/browserify/lib/_empty.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/node_modules/browserify/lib/_empty.js":[function(require,module,exports){
 
 },{}],"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/buffer/index.js":[function(require,module,exports){
 /*!
@@ -26721,16 +26847,16 @@ module.exports = warning;
 module.exports = require('./lib/ReactWithAddons');
 
 },{"./lib/ReactWithAddons":"/Users/edjafarov/work/fluxnot/node_modules/react/lib/ReactWithAddons.js"}],"/Users/edjafarov/work/fluxnot/stores/UserFormStore.js":[function(require,module,exports){
-var Actions = require('../Actions');
+
 var Emitter = require('events').EventEmitter;
 
 var User = {};
 
 var UserFormStore = {
 	init: function(){
-		Actions.on('submit:newUser', this.updateUserErrors);
-		Actions.on('submit:newUser:rejected', this.updateUserErrors);
-		Actions.on('/users/user/:userId/edit', this.updateUserToEdit);
+		//Actions.on('submit:newUser', this.updateUserErrors);
+		//Actions.on('submit:newUser:rejected', this.updateUserErrors);
+		//Actions.on('/users/user/:userId/edit', this.updateUserToEdit);
 	},
 	updateUserErrors: function(errorData){
 		UserFormStore.emit('errors', errorData);
@@ -26750,15 +26876,16 @@ UserFormStore.__proto__ = new Emitter();
 UserFormStore.init();
 
 module.exports = UserFormStore;
-},{"../Actions":"/Users/edjafarov/work/fluxnot/Actions.js","events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}],"/Users/edjafarov/work/fluxnot/stores/UserStore.js":[function(require,module,exports){
-var Actions = require('../Actions');
+},{"events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}],"/Users/edjafarov/work/fluxnot/stores/UserStore.js":[function(require,module,exports){
+var ActionsEmitter = require("../ActionsEmitter");
 var Emitter = require('events').EventEmitter;
 
 var User = [];
 
 var UserStore = {
 	init: function(){
-		Actions.on('/users/user/:userId', this.updateUser);
+		//Actions.on('/users/user/:userId', this.updateUser);
+		ActionsEmitter.on("user:get", this.updateUser);
 	},
 	updateUser: function(userData){
 		User = userData;
@@ -26775,16 +26902,16 @@ UserStore.__proto__ = new Emitter();
 UserStore.init();
 
 module.exports = UserStore;
-},{"../Actions":"/Users/edjafarov/work/fluxnot/Actions.js","events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}],"/Users/edjafarov/work/fluxnot/stores/UsersStore.js":[function(require,module,exports){
-var Actions = require('../Actions');
+},{"../ActionsEmitter":"/Users/edjafarov/work/fluxnot/ActionsEmitter.js","events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}],"/Users/edjafarov/work/fluxnot/stores/UsersStore.js":[function(require,module,exports){
 var Emitter = require('events').EventEmitter;
-
+var ActionsEmitter = require("../ActionsEmitter");
 var Users = [];
 
 var UsersStore = {
 	init: function(){
-		Actions.on('/users', this.updateUsers);
-		Actions.on('users:user:add', this.addUser);
+		//Actions.on('/users', this.updateUsers);
+		//Actions.on('users:user:add', this.addUser);
+		ActionsEmitter.on("users:get", this.updateUsers);
 	},
 	addUser: function(data){
 		Users.push(data);
@@ -26805,4 +26932,4 @@ UsersStore.__proto__ = new Emitter();
 UsersStore.init();
 
 module.exports = UsersStore;
-},{"../Actions":"/Users/edjafarov/work/fluxnot/Actions.js","events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}]},{},["/Users/edjafarov/work/fluxnot/main.js"]);
+},{"../ActionsEmitter":"/Users/edjafarov/work/fluxnot/ActionsEmitter.js","events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}]},{},["/Users/edjafarov/work/fluxnot/main.js"]);

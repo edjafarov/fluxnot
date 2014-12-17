@@ -1,7 +1,7 @@
 var React = require('react');
 var Router = require('react-router');
 var UserFormStore = require('../stores/UserFormStore');
-var Actions = require('../Actions');
+//var Actions = require('../Actions');
 
 module.exports = React.createClass({
   mixins: [ React.addons.LinkedStateMixin ],
@@ -15,7 +15,7 @@ module.exports = React.createClass({
   	this.setState({errors: data});
   },
   submit: function(){
-		Actions.doAction('submit:newUser', {}, this.state);
+		//Actions.doAction('submit:newUser', {}, this.state);
   },
   render: function () {
   	
