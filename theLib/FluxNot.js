@@ -25,7 +25,7 @@ function getClientHandler(options){
 			throw new Error("routerHandler is not defined");
 		}
 		
-		Router.run(options.routes, url || Router.HistoryLocation ,function (Handler, state) {
+		return Router.run(options.routes, url || Router.HistoryLocation ,function (Handler, state) {
 		  if(!cb){
 			  state._render = function(){
 			  	result.clientRenderedOnce = true;

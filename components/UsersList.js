@@ -20,11 +20,12 @@ module.exports = React.createClass({
   render: function () {
     return (
       <div className="Users">
-      	<ul>
+        <h3>Users - {this.state.users.length}</h3>
+      	<ol>
         {this.state.users.map(function(user){
         	return <li><Link to="user" params={{userId: user.id}} >{user.name}</Link></li>
         })}
-        </ul>
+        </ol>
         <RouteHandler/>
         <NewUserForm/>
       </div>

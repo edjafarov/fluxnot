@@ -1,15 +1,18 @@
 var Emitter = require('events').EventEmitter;
-var ActionsEmitter = require("../ActionsEmitter");
+var RouteActionsEmitter = require("../routingActions/routingActions");
+var Actions = require("../appActions/appActions");
 var Users = [];
 
 var UsersStore = {
 	init: function(){
 		//Actions.on('/users', this.updateUsers);
-		//Actions.on('users:user:add', this.addUser);
-		ActionsEmitter.on("users:get", this.updateUsers);
+		Actions.on('users:user:add', this.addUser);
+		RouteActionsEmitter.on("users:get", this.updateUsers);
 	},
 	addUser: function(data){
+		console.log(Users, data);
 		Users.push(data);
+		console.log(Users, data);
 		UsersStore.emit('change', Users);
 	},
 	updateUsers: function(userData){
