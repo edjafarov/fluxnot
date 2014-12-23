@@ -42,17 +42,26 @@ module.exports = function(actions){
 	  return data;
 	}).then(Validator.isRequired('name'))
 	.then(Validator.isLonger('name').then(5))
-
 	.then(Validator.isRequired('age'))
 	.then(ifValidationRejected)
 	.then(submit)
 	.catch(emitFormError);
 }
+/*
+or
+.then(Validator.check([
+	Validator.isRequired('name'),
+	Validator.isLonger('name').then(5),
+	Validator.isRequired('age')
+]))
+*/
 
 
 function submit(data){
+	console.log(this.app.transitionTo);
 	data.id = UsersMock.length;
   this.emit('users:user:add', data);
+  this.app.transitionTo('user', {id: data.id});
   return data;
 }
 
@@ -69,7 +78,6 @@ function emitFormError(error){
 var PromisePiper = require("../theLib/PromisePiper");
 var ActionsRouter = require("../theLib/ActionsRouter");
 var Emitter = require('events').EventEmitter;
-
 var doSpecificAction = ActionsRouter();
 
 require("./UserFormActions")(doSpecificAction);
@@ -264,7 +272,7 @@ module.exports = React.createClass({displayName: 'exports',
 var React = require('react');
 var Router = require('react-router');
 var $__0=      Router,Route=$__0.Route,RouteHandler=$__0.RouteHandler,Link=$__0.Link;
-//var Actions = require('./Actions');
+
 var App = require('./components/App');
 var UsersList = require('./components/UsersList');
 var UserDetails = require('./components/UserDetails');
@@ -331,12 +339,13 @@ app.doOnRoute(function(){
   }
 });
 
-if(FluxNot.isClient) {
-  var test = app.route();
-}
-
-module.exports = function(){
-  return app.middleware;
+if(!FluxNot.isClient) {
+  module.exports = function(){
+    return app;
+  }
+  
+} else {
+  module.exports = app.route();
 }
 
 
@@ -26510,6 +26519,7 @@ function renderIfServer(result){
 
 
 function log(data){
+  console.log(this.app.transitionTo);
   if(this.path){
     console.log(["Url Action, path:", this.path].join(''));
     if(this.query) console.log(["            query:", JSON.stringify(this.query)].join(''));
@@ -26742,7 +26752,8 @@ function getClientHandler(options){
 			throw new Error("routerHandler is not defined");
 		}
 		
-		return Router.run(options.routes, url || Router.HistoryLocation ,function (Handler, state) {
+		var app = Router.run(options.routes, url || Router.HistoryLocation ,function (Handler, state) {
+		  state.app = app || this;
 		  if(!cb){
 			  state._render = function(){
 			  	result.clientRenderedOnce = true;
@@ -26757,6 +26768,7 @@ function getClientHandler(options){
 			}
 			routerHandler.call(state);
 		});
+		return app;
 	}
 	var result = {
 		doOnRoute: function(fn){

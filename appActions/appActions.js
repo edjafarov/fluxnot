@@ -1,7 +1,6 @@
 var PromisePiper = require("../theLib/PromisePiper");
 var ActionsRouter = require("../theLib/ActionsRouter");
 var Emitter = require('events').EventEmitter;
-
 var doSpecificAction = ActionsRouter();
 
 require("./UserFormActions")(doSpecificAction);

@@ -41,6 +41,7 @@ function renderIfServer(result){
 
 
 function log(data){
+  console.log(this.app.transitionTo);
   if(this.path){
     console.log(["Url Action, path:", this.path].join(''));
     if(this.query) console.log(["            query:", JSON.stringify(this.query)].join(''));

@@ -1,7 +1,7 @@
 var React = require('react');
 var Router = require('react-router');
 var { Route, RouteHandler, Link } = Router;
-//var Actions = require('./Actions');
+
 var App = require('./components/App');
 var UsersList = require('./components/UsersList');
 var UserDetails = require('./components/UserDetails');
@@ -68,12 +68,13 @@ app.doOnRoute(function(){
   }
 });
 
-if(FluxNot.isClient) {
-  var test = app.route();
-}
-
-module.exports = function(){
-  return app.middleware;
+if(!FluxNot.isClient) {
+  module.exports = function(){
+    return app;
+  }
+  
+} else {
+  module.exports = app.route();
 }
 
 
