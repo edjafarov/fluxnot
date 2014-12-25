@@ -1,32 +1,31 @@
 var Emitter = require('events').EventEmitter;
-var RouteActionsEmitter = require("../routingActions/routingActions");
-var Actions = require("../appActions/appActions");
+module.exports = function(){
+
 var Users = [];
 
-var UsersStore = {
-	init: function(){
-		//Actions.on('/users', this.updateUsers);
-		Actions.on('users:user:add', this.addUser);
-		RouteActionsEmitter.on("users:get", this.updateUsers);
-	},
-	addUser: function(data){
-		console.log(Users, data);
+var UsersStore = Object.create(new Emitter(), {
+	init: {value:function(ctx){
+		Object.keys(ctx).reduce(function(context, name){
+			context[name] = ctx[name];
+			return context;
+		}, this);		
+		this.appActions.on('users:user:add', this.addUser);
+		this.routingActions.on("users:get", this.updateUsers);
+	}},
+	addUser: {value:function(data){
 		Users.push(data);
-		console.log(Users, data);
 		UsersStore.emit('change', Users);
-	},
-	updateUsers: function(userData){
+	}},
+	updateUsers: {value:function(userData){
 		Users = userData;
 		UsersStore.emit('change', Users);
-	},
-	get: function(){
+	}},
+	get: {value:function(){
 		return Users;
-	}
-}; 
-
-UsersStore.__proto__ = new Emitter();
+	}}
+}); 
 
 
-UsersStore.init();
-
-module.exports = UsersStore;
+	return UsersStore;
+}
+//module.exports = UsersStore;

@@ -2,9 +2,7 @@ var React = require('react');
 var Router = require('react-router');
 var { Route, RouteHandler, Link } = Router;
 
-var App = require('./components/App');
-var UsersList = require('./components/UsersList');
-var UserDetails = require('./components/UserDetails');
+
 
 var Promise = require('es6-promise').Promise;
 var FluxNot = require('./theLib/FluxNot');
@@ -33,26 +31,107 @@ UsersMock = [
 
 
 
-var routes = (
-  <Route handler={App}>
-    <Route name="users" path="users" handler={UsersList}>
-      <Route name="user" path="user/:userId" handler={UserDetails} />
-    </Route>
 
-  </Route>
-);
 
-var onRoute = require("./routingActions/routingActions").doAction;
+
 
 var appCfg = {
-  routes: routes
+  router: function(url, cb){ // the router accepts url and cb
+    if(url){
+      // pass the url if defined
+      return Router.run(routes, url, cb);
+    } else {
+      // set up the router listener for browser
+      return Router.run(routes, Router.HistoryLocation, cb);
+    }
+  },
+  context: { //we need to define what actions and stores we will use
+    routingActions: require("./routingActions/routingActions"),
+    appActions: require("./appActions/appActions"),
+    UserFormStore: require("./stores/UserFormStore"),
+    UserStore: require("./stores/UserStore"),
+    UsersStore: require("./stores/UsersStore")  
+  }
 };
 
 
 //Read Template
-if(FluxNot.isServer) appCfg.indexTemplate = require('fs').readFileSync("./index.html")
+if(FluxNot.isServer) var indexTemplate = require('fs').readFileSync("./index.html")
 
+
+var createApp = require("./theLib/RouteHandler");
+var app = createApp(appCfg);
+
+module.exports =  {
+  mixin: {
+    //context mixin for React compoennts
+    contextTypes: Object.keys(app.context).reduce(function(types, name){
+      types[name] = React.PropTypes.object.isRequired;
+      return types;
+    },{})
+  },
+  middleware: function(req, res){
+    // render as HTML
+    app.renderUrl(req.originalUrl, function(Handler, state){
+      // this.render - define context render function
+      state.render = function(){
+        React.withContext(state, function(){ // render the Handler with current context
+          var renderedApp = React.renderToString(<Handler/>);
+          res.end(indexTemplate.toString().replace('<body>','<body><div id="content">' + renderedApp + '<div>'));
+        })
+      }
+      // check routes to trigger
+      var urlsMatched = this.routes.map(function(route){
+        return route.path;
+      });
+     
+      if(urlsMatched.length > 0){
+        // trigger routing actions
+        state.routingActions.doAction.call(this, urlsMatched, null, this);
+      } else {
+        this.render()
+      }
+    })
+  }
+}
+
+
+var AppComponent = require('./components/App');
+var UsersList = require('./components/UsersList');
+var UserDetails = require('./components/UserDetails');
+
+var routes = (
+  <Route handler={AppComponent} >
+    <Route name="users" path="users" handler={UsersList} >
+      <Route name="user" path="user/:userId" handler={UserDetails} />
+    </Route>
+  </Route>
+);
+
+
+if(app.isClient) { //If client - init the app, on route change set up context and trigger routing actions
+  app.initApp(function(Handler, state){
+      state.render = function(){
+        React.withContext(state, function(){
+          React.render(<Handler/>, document.getElementById('content'));
+        })
+      }
+      var urlsMatched = this.routes.map(function(route){
+        return route.path;
+      });
+     
+      if(urlsMatched.length > 0){
+        state.routingActions.doAction.call(this, urlsMatched, null, this);
+      } else {
+        this.render()
+      }    
+  });
+}
+/*
 var app = FluxNot(appCfg);
+
+
+
 
 app.doOnRoute(function(){
   var urlsMatched = this.routes.map(function(route){
@@ -74,7 +153,11 @@ if(!FluxNot.isClient) {
   }
   
 } else {
-  module.exports = app.route();
+  var appIn = app.route();
+  module.exports = appIn;
+  appActions.defaultContext({
+    app: appIn
+  });
 }
 
 

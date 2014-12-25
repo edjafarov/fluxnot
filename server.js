@@ -8,6 +8,6 @@ app.get('/bundle.js', function(req, res){
 	fs.createReadStream('./bundle.js').pipe(res);
 });
 
-app.use(clientApp().middleware);
+app.use(clientApp.middleware);
 
 app.listen(3000);

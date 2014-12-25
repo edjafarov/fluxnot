@@ -2,9 +2,11 @@ var React = require('react');
 var Router = require('react-router');
 var { Route, RouteHandler, Link, Navigation } = Router;
 var UsersList = require('./UsersList');
+var ContextMixin = require("../main").mixin;
+
 
 module.exports = React.createClass({
-  mixins: [Navigation],
+  mixins: [Navigation, ContextMixin],
   render: function () {
     return (
       <div className="container">

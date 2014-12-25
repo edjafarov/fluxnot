@@ -26,7 +26,7 @@ function getClientHandler(options){
 		}
 		
 		var app = Router.run(options.routes, url || Router.HistoryLocation ,function (Handler, state) {
-		  state.app = app || this;
+		  state.app = this;
 		  if(!cb){
 			  state._render = function(){
 			  	result.clientRenderedOnce = true;
@@ -48,7 +48,7 @@ function getClientHandler(options){
 			routerHandler = fn;
 		},
 		middleware: function(req, res, next){
-			route(req.originalUrl, function(err, html){
+			return route(req.originalUrl, function(err, html){
 				if(err) return next(err);
 				res.end(html)
 			});
@@ -63,6 +63,23 @@ getClientHandler.isClient = isClient;
 getClientHandler.isServer = !isClient;
 
 module.exports = getClientHandler;
+
+
+
+function route(Handler, state){
+	if(!cb){
+	  this.render = function(){
+	  	result.clientRenderedOnce = true;
+	    return React.render(<Handler/>, document.getElementById('content'));
+	  }
+	} else {
+		this.render = function(){
+			if(!options.indexTemplate) throw new Error("indexTemplate option should be defined");
+      var renderedApp = React.renderToString(<Handler/>);
+      cb(null, options.indexTemplate.replace('<body>','<body><div id="content">' + renderedApp + '<div>'));
+		}
+	}
+}
 
 
 /*{

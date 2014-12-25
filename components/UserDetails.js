@@ -1,15 +1,16 @@
 var React = require('react');
 var Router = require('react-router');
-var UserStore = require('../stores/UserStore');
+var { Route, RouteHandler, Link, Navigation } = Router;
 var UserItem = require('./UserItem');
+var ContextMixin = require("../main").mixin;
 
 module.exports = React.createClass({
-  mixins: [ Router.State ],
+  mixins: [ Router.State,  Navigation, ContextMixin ],
   getInitialState: function(){
-  	return {user: UserStore.get()};
+  	return {user: this.context.UserStore.get()};
   },
   componentDidMount: function() {
-    UserStore.on('change', this.onUserChage);
+    this.context.UserStore.on('change', this.onUserChage);
   },
   onUserChage: function(user){
     if(!this.isMounted()) return;
@@ -18,7 +19,7 @@ module.exports = React.createClass({
   render: function () {
     return (
       <div className="UserDetails">
-        {UserItem(this.state.user)}
+        {React.createFactory(UserItem)(this.state.user)}
       </div>
     );
   }

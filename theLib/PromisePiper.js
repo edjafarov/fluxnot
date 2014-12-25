@@ -5,7 +5,7 @@ function PromisePiper(){
 
   var result = function(data){
     var chain = [].concat(sequence);
-    chain = chain.map(bindTo(this).bindIt); 
+    chain = chain.map(bindTo(this).bindIt);
     return doit(chain, data);
   }
   

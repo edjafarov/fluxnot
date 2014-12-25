@@ -11,7 +11,9 @@ function getRouter(){
       if(routes[actionName]) promises.push(routes[actionName].call(that, data));
       return promises; 
     }, []);
-    return promises.length>0?Promise.all(promises):Promise.resolve(data);
+
+    var result = promises.length>0?Promise.all(promises):Promise.resolve(data);
+    return result;
   }
 
   actionsRouter.create = function(name){

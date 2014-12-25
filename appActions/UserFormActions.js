@@ -7,15 +7,13 @@ var { Route, RouteHandler, Link } = Router;
 module.exports = function(actions){
 	
 	actions.create("submit:newUser")
-	.then(function(data){
-	  delete data.errors;
-	  return data;
-	}).then(Validator.isRequired('name'))
+	.then(Validator.isRequired('name'))
 	.then(Validator.isLonger('name').then(5))
 	.then(Validator.isRequired('age'))
 	.then(ifValidationRejected)
 	.then(submit)
 	.catch(emitFormError);
+	
 }
 /*
 or
@@ -28,10 +26,10 @@ or
 
 
 function submit(data){
-	console.log(this.app.transitionTo);
 	data.id = UsersMock.length;
-  this.emit('users:user:add', data);
-  this.app.transitionTo('user', {id: data.id});
+  this.emit('users:user:add', data); 
+  this.app.transitionTo('user', {userId: data.id});
+
   return data;
 }
 
