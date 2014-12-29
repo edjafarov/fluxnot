@@ -1,3 +1,4 @@
+var Emitter = require('events').EventEmitter;
 
 var isClient = true;
 try{
@@ -6,14 +7,7 @@ try{
   isClient = false;
 }
 
-var routes;
-function router(url, cb){
-	if(url){
-		return Router.run(routes, url, cb);
-	} else {
-		return Router.run(routes, Router.HistoryLocation, cb);
-	}
-}
+
 
 module.exports = function createApp(options){
 	if(!options.router) throw new Error("Router should be defined");
@@ -21,12 +15,17 @@ module.exports = function createApp(options){
 	var ctx = initContext();
 
 	function initContext(){
-		var ctx = Object.keys(options.context).reduce(function(context, factoryName){
-			context[factoryName] = options.context[factoryName]();
+		var ctx = {
+			stores:{},
+			actions: new Emitter()
+		}
+		var ctx = Object.keys(options.stores).reduce(function(context, factoryName){
+			context.stores[factoryName] = options.stores[factoryName]();
 			return context;
-		}, {});
-		Object.keys(ctx).forEach(function(name){
-			ctx[name].init(ctx);
+		}, ctx);
+		
+		Object.keys(ctx.stores).forEach(function(name){
+			ctx.stores[name].init(ctx);
 		});
 		return ctx;
 	}
@@ -36,7 +35,7 @@ module.exports = function createApp(options){
 			ctx = initContext();
 		}
 		return function(Handler, state){
-
+			state.app = this;
 			state = Object.keys(ctx).reduce(function(context, name){
 				context[name] = ctx[name];
 				return context;
@@ -57,7 +56,7 @@ module.exports = function createApp(options){
       options.router.call(this, url, handlerWrapper(cb, true));
     },
     initApp: function initApp(cb){
-    	options.router.call(this, null, handlerWrapper(cb));
+    	return options.router.call(this, null, handlerWrapper(cb));
     },
     context: ctx,
     isClient: isClient,

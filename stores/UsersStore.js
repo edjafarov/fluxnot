@@ -9,8 +9,8 @@ var UsersStore = Object.create(new Emitter(), {
 			context[name] = ctx[name];
 			return context;
 		}, this);		
-		this.appActions.on('users:user:add', this.addUser);
-		this.routingActions.on("users:get", this.updateUsers);
+		this.actions.on('users:user:add', this.addUser);
+		this.actions.on("users:get", this.updateUsers);
 	}},
 	addUser: {value:function(data){
 		Users.push(data);

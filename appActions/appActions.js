@@ -1,3 +1,5 @@
+var FluxNot = require('../theLib/FluxNot');
+
 module.exports = function(){
 		// create instance of appActions
 	var appActions = require("../theLib/Actions")();
@@ -9,23 +11,57 @@ module.exports = function(){
 	appActions.actionsPipe
 
 	//log before
-	.then(logAction) 
-
+	.then(log) 
+  .then(renderIfClient)
 	//do real specific actions
 	.then(appActions.actionsRouter)
-	
+  .then(renderIfServer)	
 	//catch errors after
 	.catch(logErrorAction) 
 
 
-	function logAction(data){
-		console.log("Action:", this.actionName, data, this);
-		return data;
-	}
-	function logErrorAction(data){
-		console.log("ERROR:", this.actionName, data);
-		return data;
-	}
+  var clientRederedOnce = false;
+
+  function renderIfClient(data){
+    if(FluxNot.isClient && clientRederedOnce && this.path) {
+      this.$render();
+      clientRederedOnce = true;
+    }
+    return data;
+  }
+
+  function renderIfServer(result){
+    if(this.path && (!FluxNot.isClient || !clientRederedOnce)) {
+      if(this._emitted) throw new Error("Action could not be finalized twice: " + actionName);
+      this._emitted = true;
+      try{
+        this.$render();
+      } catch (e){
+        console.log(e)
+      }
+      
+    }
+    return result;
+  }
+
+
+  function log(data){
+    
+    if(this.path){
+      console.log(["Url Action, path:", this.path].join(''));
+      if(this.query) console.log(["            query:", JSON.stringify(this.query)].join(''));
+      if(this.params) console.log(["            params:", JSON.stringify(this.params)].join(''));
+    } else {
+      console.log("Log:", data, this);
+    }
+    return data;
+  }
+
+
+  function logErrorAction(data){
+    console.log("ERROR:", this.actionName, data);
+    return data;
+  }
 
 
 	return appActions;

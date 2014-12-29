@@ -17,14 +17,23 @@ var UserFormStore = Object.create(new Emitter(), {
 				context[name] = ctx[name];
 				return context;
 			}, this);
-			this.appActions.on('submit:newUser:rejected', this.updateUserErrors);
-			this.appActions.on('users:user:add', this.cleanStore);
+			this.actions.on('submit:newUser:rejected', this.updateUserErrors);
+			this.actions.on('users:user:add', this.cleanStore);
+			this.actions.on('users:user:clean', this.cleanStore);
+			this.actions.on('users:user:fill', this.fillData);
 			//Actions.on('submit:newUser', this.updateUserErrors);
 			
-			//Actions.on('/users/user/:userId/edit', this.updateUserToEdit);
+		}
+	},
+	fillData: { value: function(userData){
+			UserForm = {
+				data: userData
+			}
+			UserFormStore.emit('change', UserForm);
 		}
 	},
 	cleanStore: {value: function(){
+		console.log("CLEANING");
 		UserForm = {
 			data:{},
 			errors: []

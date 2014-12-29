@@ -9,7 +9,7 @@ var UserStore = Object.create(new Emitter(), {
 			context[name] = ctx[name];
 			return context;
 		}, this);		
-		this.routingActions.on("user:get", this.updateUser);
+		this.actions.on("user:get", this.updateUser);
 	}},
 	updateUser: {value: function(userData){
 		User = userData;

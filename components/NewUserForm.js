@@ -1,21 +1,23 @@
 var React = require('react');
 var Router = require('react-router');
 var { Route, RouteHandler, Link, Navigation } = Router;
-var ContextMixin = require("../main").mixin;
+var ContextMixin = require("../theLib/ContextMixin");
 
 module.exports = React.createClass({
+  displayName: "NewUserForm",
   mixins: [ require("../theLib/LinkDataStateMixin"),  Navigation, ContextMixin],
   getInitialState: function(){
-  	return this.context.UserFormStore.get();
+  	return this.context.stores.UserFormStore.get();
   },
   componentDidMount: function() {
-    this.context.UserFormStore.on('change', this.change);
+    this.context.stores.UserFormStore.on('change', this.change);
   },	  
   change: function(data){
+    if(!this.isMounted()) return;
     this.replaceState(data);
   },
   submit: function(){
-		this.context.appActions.doAction('submit:newUser', this.state.data);
+		this.context.doAction('submit:newUser', this.state.data);
   },
   render: function () {
   	

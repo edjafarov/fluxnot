@@ -30,9 +30,44 @@ UsersMock = [
 ];
 
 
+/*****
+
+Action
+  inside action I should have access to data/request/emit 
+  data - input
+  request - input
+  emit - server, new each other, client the same each time
+Store
+  store shoul be new each time on server and single on client
+  inside store I should have access to actions emitter and emit self
+Component
+  should have access to store/context, to action triggring
 
 
 
+context.actions.on() --> in store
+
+context.$render = function(){
+  this.context.stores(soreName).on... (component)
+  context.actions.doAction() (component)
+}
+*/
+
+var AppComponent = require('./components/App');
+var UsersList = require('./components/UsersList');
+var UserDetails = require('./components/UserDetails');
+var NewUserForm = require('./components/NewUserForm');
+var actions = require('./actions/actions')
+
+var routes = (
+  <Route handler={AppComponent}>
+    <Route name="users" path="users" handler={UsersList} action={actions.users.usersList}>
+      <Route name="userCreate" path="create" handler={NewUserForm} action={actions.users.userCreate}/>
+      <Route name="user" path=":userId" handler={UserDetails} action={actions.users.user}/>
+      <Route name="userEdit" path=":userId/edit" handler={NewUserForm} action={actions.users.userEdit}/>
+    </Route>
+  </Route>
+);
 
 
 var appCfg = {
@@ -45,9 +80,7 @@ var appCfg = {
       return Router.run(routes, Router.HistoryLocation, cb);
     }
   },
-  context: { //we need to define what actions and stores we will use
-    routingActions: require("./routingActions/routingActions"),
-    appActions: require("./appActions/appActions"),
+  stores: { //we need to define what actions and stores we will use
     UserFormStore: require("./stores/UserFormStore"),
     UserStore: require("./stores/UserStore"),
     UsersStore: require("./stores/UsersStore")  
@@ -58,107 +91,72 @@ var appCfg = {
 //Read Template
 if(FluxNot.isServer) var indexTemplate = require('fs').readFileSync("./index.html")
 
+var appActions = require("./appActions/appActions")();
+var ReactRouterAdapter = require("./theLib/ReactRouterAdapter");
+
+ReactRouterAdapter.parseActions(routes).forEach(function(route){
+  appActions.actionsRouter.create(route.path, route.action);
+})
+
 
 var createApp = require("./theLib/RouteHandler");
 var app = createApp(appCfg);
 
 module.exports =  {
-  mixin: {
-    //context mixin for React compoennts
-    contextTypes: Object.keys(app.context).reduce(function(types, name){
-      types[name] = React.PropTypes.object.isRequired;
-      return types;
-    },{})
-  },
   middleware: function(req, res){
     // render as HTML
     app.renderUrl(req.originalUrl, function(Handler, state){
       // this.render - define context render function
-      state.render = function(){
-        React.withContext(state, function(){ // render the Handler with current context
+      state.$render = function(){
+        //PUT doAction in components context
+        var doAction = appActions.withContext(state).doAction;
+
+        React.withContext({actions:doAction, stores: state.stores}, function(){ // render the Handler with current context
           var renderedApp = React.renderToString(<Handler/>);
           res.end(indexTemplate.toString().replace('<body>','<body><div id="content">' + renderedApp + '<div>'));
         })
       }
+      
       // check routes to trigger
       var urlsMatched = this.routes.map(function(route){
         return route.path;
       });
-     
+      
       if(urlsMatched.length > 0){
-        // trigger routing actions
-        state.routingActions.doAction.call(this, urlsMatched, null, this);
+        // trigger routing actions within the context
+        appActions.doAction.call(this, urlsMatched, null, this);
       } else {
-        this.render()
+        this.$render()
       }
     })
   }
 }
 
 
-var AppComponent = require('./components/App');
-var UsersList = require('./components/UsersList');
-var UserDetails = require('./components/UserDetails');
 
-var routes = (
-  <Route handler={AppComponent} >
-    <Route name="users" path="users" handler={UsersList} >
-      <Route name="user" path="user/:userId" handler={UserDetails} />
-    </Route>
-  </Route>
-);
 
 
 if(app.isClient) { //If client - init the app, on route change set up context and trigger routing actions
   app.initApp(function(Handler, state){
-      state.render = function(){
-        React.withContext(state, function(){
+      //state.appActions.context.app = state.app;
+      state.$render = function(){
+        var doAction = appActions.withContext(state).doAction;
+        React.withContext({actions:doAction, stores: state.stores}, function(){
           React.render(<Handler/>, document.getElementById('content'));
         })
       }
       var urlsMatched = this.routes.map(function(route){
         return route.path;
       });
-     
+      
       if(urlsMatched.length > 0){
-        state.routingActions.doAction.call(this, urlsMatched, null, this);
+        appActions.doAction.call(this, urlsMatched, null, this);
       } else {
-        this.render()
+        this.$render()
       }    
   });
 }
-/*
-var app = FluxNot(appCfg);
 
-
-
-
-app.doOnRoute(function(){
-  var urlsMatched = this.routes.map(function(route){
-    return route.path;
-  });
-
-  if(urlsMatched.length > 0 && !app.clientRenderedOnce){
-    onRoute.call(this, urlsMatched, null, this);
-  } else if (urlsMatched.length > 0 && app.clientRenderedOnce) {
-    onRoute.call(this, urlsMatched[urlsMatched.length - 1], null, this);
-  } else {
-    this._render()
-  }
-});
-
-if(!FluxNot.isClient) {
-  module.exports = function(){
-    return app;
-  }
-  
-} else {
-  var appIn = app.route();
-  module.exports = appIn;
-  appActions.defaultContext({
-    app: appIn
-  });
-}
 
 
 

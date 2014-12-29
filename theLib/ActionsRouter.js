@@ -16,10 +16,11 @@ function getRouter(){
     return result;
   }
 
-  actionsRouter.create = function(name){
-    routes[name] = PromisePiper();
+  actionsRouter.create = function(name, pipe){
+    routes[name] = pipe || PromisePiper();
     return routes[name];
-  }  
+  }
+
   return actionsRouter;
 }
 

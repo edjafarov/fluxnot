@@ -1,11 +1,13 @@
 var React = require('react');
 var Router = require('react-router');
 var { Route, RouteHandler, Link, Navigation } = Router;
-var ContextMixin = require("../main").mixin;
+var ContextMixin = require("../theLib/ContextMixin");
 
 module.exports = React.createClass({
+  displayName: "UserItem",
   mixins: [ Router.State,  Navigation, ContextMixin],
   render: function () {
+
     return (
       <div className="User">
         <h3>Name: {this.props.name}</h3>

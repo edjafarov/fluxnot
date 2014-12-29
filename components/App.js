@@ -2,11 +2,12 @@ var React = require('react');
 var Router = require('react-router');
 var { Route, RouteHandler, Link, Navigation } = Router;
 var UsersList = require('./UsersList');
-var ContextMixin = require("../main").mixin;
-
+var ContextMixin = require("../theLib/ContextMixin");
+var PromisePiper = require("../theLib/PromisePiper");
 
 module.exports = React.createClass({
   mixins: [Navigation, ContextMixin],
+  displayName: "AppComponent",
   render: function () {
     return (
       <div className="container">
@@ -25,4 +26,9 @@ module.exports = React.createClass({
       </div>
     );
   }
+});
+
+module.exports.action = PromisePiper().
+then(function(){
+  console.log("Trigger main APP");
 });

@@ -1,7 +1,7 @@
 var Promise = require('es6-promise').Promise;
 
-function PromisePiper(){
-  var sequence = []
+function PromisePiper(sequence){
+  sequence = sequence || []
 
   var result = function(data){
     var chain = [].concat(sequence);
@@ -17,6 +17,17 @@ function PromisePiper(){
     fn.isCatch = true;
     sequence.push([fn]);
     return result;
+  }
+  result.join = function(){
+    var pipers = [].slice.call(arguments);
+    var sequences = pipers.map(function(pipe){
+      return pipe._getSequence();
+    });
+    var newSequence = sequence.concat.apply(sequence, sequences);
+    return PromisePiper(newSequence);
+  }
+  result._getSequence = function(){
+    return sequence;
   }
   return result;
 }
@@ -68,4 +79,15 @@ var pipe1 = PromisePiper()
   console.log(data)
 });
 
-pipe1(5)*/
+pipe1(5)
+
+var pipe2 = PromisePiper()
+.then(function(){
+  console.log("end")
+})
+
+pipe3 = pipe1.join(pipe2)
+
+pipe3(5)
+
+*/

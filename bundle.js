@@ -27,7 +27,57 @@ module.exports = {
 	}
 
 }
-},{}],"/Users/edjafarov/work/fluxnot/appActions/UserFormActions.js":[function(require,module,exports){
+},{}],"/Users/edjafarov/work/fluxnot/actions/actions.js":[function(require,module,exports){
+module.exports = {
+	users: require("./users")
+}
+},{"./users":"/Users/edjafarov/work/fluxnot/actions/users.js"}],"/Users/edjafarov/work/fluxnot/actions/users.js":[function(require,module,exports){
+var Promise = require('es6-promise').Promise;
+var PromisePiper = require("../theLib/PromisePiper");
+
+module.exports = {
+	usersList: PromisePiper().then(function(data){
+	  var that = this;
+	  return new Promise(function(fulfil, rej){
+	    setTimeout( function(){
+	      fulfil(UsersMock);
+	    }, 400);
+	  })
+	}).then(function(response){
+	  this.emit("users:get", response);
+	  return response;
+	}),
+
+	user: PromisePiper().then(function(data){
+	  var that = this;
+	  return new Promise(function(fulfil, rej){
+	    setTimeout( function(){
+	      fulfil(UsersMock[that.params.userId]);
+	    }, 400);
+	  })
+	}).then(function(response){
+	  this.emit("user:get", response);
+	  return response;
+	}),
+
+	userEdit: PromisePiper().then(function(data){
+	  var that = this;
+	  return new Promise(function(fulfil, rej){
+	    setTimeout( function(){
+	      fulfil(UsersMock[that.params.userId]);
+	    }, 400);
+	  })
+	}).then(function(response){
+	  this.emit("users:user:fill", response);
+	  return response;
+	}),
+	userCreate: PromisePiper()
+	.then(function(response){
+	  this.emit("users:user:clean");
+	  return response;		
+	})
+}
+},{"../theLib/PromisePiper":"/Users/edjafarov/work/fluxnot/theLib/PromisePiper.js","es6-promise":"/Users/edjafarov/work/fluxnot/node_modules/es6-promise/dist/es6-promise.js"}],"/Users/edjafarov/work/fluxnot/appActions/UserFormActions.js":[function(require,module,exports){
 var Validator = require("../Validators");
 var Router = require('react-router');
 var $__0=      Router,Route=$__0.Route,RouteHandler=$__0.RouteHandler,Link=$__0.Link;
@@ -58,6 +108,7 @@ or
 function submit(data){
 	data.id = UsersMock.length;
   this.emit('users:user:add', data); 
+  console.log(this);
   this.app.transitionTo('user', {userId: data.id});
 
   return data;
@@ -73,6 +124,8 @@ function emitFormError(error){
 }
 
 },{"../Validators":"/Users/edjafarov/work/fluxnot/Validators.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/appActions/appActions.js":[function(require,module,exports){
+var FluxNot = require('../theLib/FluxNot');
+
 module.exports = function(){
 		// create instance of appActions
 	var appActions = require("../theLib/Actions")();
@@ -84,23 +137,57 @@ module.exports = function(){
 	appActions.actionsPipe
 
 	//log before
-	.then(logAction) 
-
+	.then(log) 
+  .then(renderIfClient)
 	//do real specific actions
 	.then(appActions.actionsRouter)
-	
+  .then(renderIfServer)	
 	//catch errors after
 	.catch(logErrorAction) 
 
 
-	function logAction(data){
-		console.log("Action:", this.actionName, data, this);
-		return data;
-	}
-	function logErrorAction(data){
-		console.log("ERROR:", this.actionName, data);
-		return data;
-	}
+  var clientRederedOnce = false;
+
+  function renderIfClient(data){
+    if(FluxNot.isClient && clientRederedOnce && this.path) {
+      this.$render();
+      clientRederedOnce = true;
+    }
+    return data;
+  }
+
+  function renderIfServer(result){
+    if(this.path && (!FluxNot.isClient || !clientRederedOnce)) {
+      if(this._emitted) throw new Error("Action could not be finalized twice: " + actionName);
+      this._emitted = true;
+      try{
+        this.$render();
+      } catch (e){
+        console.log(e)
+      }
+      
+    }
+    return result;
+  }
+
+
+  function log(data){
+    
+    if(this.path){
+      console.log(["Url Action, path:", this.path].join(''));
+      if(this.query) console.log(["            query:", JSON.stringify(this.query)].join(''));
+      if(this.params) console.log(["            params:", JSON.stringify(this.params)].join(''));
+    } else {
+      console.log("Log:", data, this);
+    }
+    return data;
+  }
+
+
+  function logErrorAction(data){
+    console.log("ERROR:", this.actionName, data);
+    return data;
+  }
 
 
 	return appActions;
@@ -124,16 +211,17 @@ Usage:
  		.catch(handleSomeError)
 */
 
-},{"../theLib/Actions":"/Users/edjafarov/work/fluxnot/theLib/Actions.js","./UserFormActions":"/Users/edjafarov/work/fluxnot/appActions/UserFormActions.js"}],"/Users/edjafarov/work/fluxnot/components/App.js":[function(require,module,exports){
+},{"../theLib/Actions":"/Users/edjafarov/work/fluxnot/theLib/Actions.js","../theLib/FluxNot":"/Users/edjafarov/work/fluxnot/theLib/FluxNot.js","./UserFormActions":"/Users/edjafarov/work/fluxnot/appActions/UserFormActions.js"}],"/Users/edjafarov/work/fluxnot/components/App.js":[function(require,module,exports){
 var React = require('react');
 var Router = require('react-router');
 var $__0=       Router,Route=$__0.Route,RouteHandler=$__0.RouteHandler,Link=$__0.Link,Navigation=$__0.Navigation;
 var UsersList = require('./UsersList');
-var ContextMixin = require("../main").mixin;
+var ContextMixin = require("../theLib/ContextMixin");
+var PromisePiper = require("../theLib/PromisePiper");
 
-
-module.exports = React.createClass({displayName: 'exports',
+module.exports = React.createClass({
   mixins: [Navigation, ContextMixin],
+  displayName: "AppComponent",
   render: function () {
     return (
       React.createElement("div", {className: "container"}, 
@@ -154,25 +242,32 @@ module.exports = React.createClass({displayName: 'exports',
   }
 });
 
-},{"../main":"/Users/edjafarov/work/fluxnot/main.js","./UsersList":"/Users/edjafarov/work/fluxnot/components/UsersList.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/components/NewUserForm.js":[function(require,module,exports){
+module.exports.action = PromisePiper().
+then(function(){
+  console.log("Trigger main APP");
+});
+
+},{"../theLib/ContextMixin":"/Users/edjafarov/work/fluxnot/theLib/ContextMixin.js","../theLib/PromisePiper":"/Users/edjafarov/work/fluxnot/theLib/PromisePiper.js","./UsersList":"/Users/edjafarov/work/fluxnot/components/UsersList.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/components/NewUserForm.js":[function(require,module,exports){
 var React = require('react');
 var Router = require('react-router');
 var $__0=       Router,Route=$__0.Route,RouteHandler=$__0.RouteHandler,Link=$__0.Link,Navigation=$__0.Navigation;
-var ContextMixin = require("../main").mixin;
+var ContextMixin = require("../theLib/ContextMixin");
 
-module.exports = React.createClass({displayName: 'exports',
+module.exports = React.createClass({
+  displayName: "NewUserForm",
   mixins: [ require("../theLib/LinkDataStateMixin"),  Navigation, ContextMixin],
   getInitialState: function(){
-  	return this.context.UserFormStore.get();
+  	return this.context.stores.UserFormStore.get();
   },
   componentDidMount: function() {
-    this.context.UserFormStore.on('change', this.change);
+    this.context.stores.UserFormStore.on('change', this.change);
   },	  
   change: function(data){
+    if(!this.isMounted()) return;
     this.replaceState(data);
   },
   submit: function(){
-		this.context.appActions.doAction('submit:newUser', this.state.data);
+		this.context.doAction('submit:newUser', this.state.data);
   },
   render: function () {
   	
@@ -203,20 +298,21 @@ module.exports = React.createClass({displayName: 'exports',
     );
   }
 });
-},{"../main":"/Users/edjafarov/work/fluxnot/main.js","../theLib/LinkDataStateMixin":"/Users/edjafarov/work/fluxnot/theLib/LinkDataStateMixin.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/components/UserDetails.js":[function(require,module,exports){
+},{"../theLib/ContextMixin":"/Users/edjafarov/work/fluxnot/theLib/ContextMixin.js","../theLib/LinkDataStateMixin":"/Users/edjafarov/work/fluxnot/theLib/LinkDataStateMixin.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/components/UserDetails.js":[function(require,module,exports){
 var React = require('react');
 var Router = require('react-router');
 var $__0=       Router,Route=$__0.Route,RouteHandler=$__0.RouteHandler,Link=$__0.Link,Navigation=$__0.Navigation;
 var UserItem = require('./UserItem');
-var ContextMixin = require("../main").mixin;
+var ContextMixin = require("../theLib/ContextMixin");
 
-module.exports = React.createClass({displayName: 'exports',
+module.exports = React.createClass({
+  displayName: "UserDetails",
   mixins: [ Router.State,  Navigation, ContextMixin ],
   getInitialState: function(){
-  	return {user: this.context.UserStore.get()};
+  	return {user: this.context.stores.UserStore.get()};
   },
   componentDidMount: function() {
-    this.context.UserStore.on('change', this.onUserChage);
+    this.context.stores.UserStore.on('change', this.onUserChage);
   },
   onUserChage: function(user){
     if(!this.isMounted()) return;
@@ -230,15 +326,17 @@ module.exports = React.createClass({displayName: 'exports',
     );
   }
 });
-},{"../main":"/Users/edjafarov/work/fluxnot/main.js","./UserItem":"/Users/edjafarov/work/fluxnot/components/UserItem.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/components/UserItem.js":[function(require,module,exports){
+},{"../theLib/ContextMixin":"/Users/edjafarov/work/fluxnot/theLib/ContextMixin.js","./UserItem":"/Users/edjafarov/work/fluxnot/components/UserItem.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/components/UserItem.js":[function(require,module,exports){
 var React = require('react');
 var Router = require('react-router');
 var $__0=       Router,Route=$__0.Route,RouteHandler=$__0.RouteHandler,Link=$__0.Link,Navigation=$__0.Navigation;
-var ContextMixin = require("../main").mixin;
+var ContextMixin = require("../theLib/ContextMixin");
 
-module.exports = React.createClass({displayName: 'exports',
+module.exports = React.createClass({
+  displayName: "UserItem",
   mixins: [ Router.State,  Navigation, ContextMixin],
   render: function () {
+
     return (
       React.createElement("div", {className: "User"}, 
         React.createElement("h3", null, "Name: ", this.props.name), 
@@ -249,21 +347,22 @@ module.exports = React.createClass({displayName: 'exports',
     );
   }
 });
-},{"../main":"/Users/edjafarov/work/fluxnot/main.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/components/UsersList.js":[function(require,module,exports){
+},{"../theLib/ContextMixin":"/Users/edjafarov/work/fluxnot/theLib/ContextMixin.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/components/UsersList.js":[function(require,module,exports){
 var React = require('react');
 var Router = require('react-router');
 var $__0=       Router,Route=$__0.Route,RouteHandler=$__0.RouteHandler,Link=$__0.Link,Navigation=$__0.Navigation;
 var UserItem = require('./UserItem');
-var NewUserForm = require('./NewUserForm');
-var ContextMixin = require("../main").mixin;
 
-module.exports = React.createClass({displayName: 'exports',
+var ContextMixin = require("../theLib/ContextMixin");
+
+module.exports = React.createClass({
+  displayName: "UsersList",
   mixins: [ Router.State , Navigation, ContextMixin],
   getInitialState: function(){
-  	return {users: this.context.UsersStore.get()};
+    return {users: this.context.stores.UsersStore.get()};
   },
   componentDidMount: function() {
-    this.context.UsersStore.on('change', this.onUsersChage);
+    this.context.stores.UsersStore.on('change', this.onUsersChage);
   },
   onUsersChage: function(users){
     if(!this.isMounted()) return;
@@ -275,16 +374,18 @@ module.exports = React.createClass({displayName: 'exports',
         React.createElement("h3", null, "Users - ", this.state.users.length), 
       	React.createElement("ol", null, 
         this.state.users.map(function(user){
-        	return React.createElement("li", {key: user.id}, React.createElement(Link, {to: "user", params: {userId: user.id}}, user.name))
+        	return React.createElement("li", {key: user.id}, 
+            React.createElement(Link, {to: "user", params: {userId: user.id}}, user.name), " - ", React.createElement(Link, {to: "userEdit", params: {userId: user.id}}, "Edit")
+          )
         })
         ), 
-        React.createElement(RouteHandler, null), 
-        React.createElement(NewUserForm, null)
+        React.createElement(Link, {to: "userCreate"}, "Create new"), 
+        React.createElement(RouteHandler, null)
       )
     );
   }
 });
-},{"../main":"/Users/edjafarov/work/fluxnot/main.js","./NewUserForm":"/Users/edjafarov/work/fluxnot/components/NewUserForm.js","./UserItem":"/Users/edjafarov/work/fluxnot/components/UserItem.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/main.js":[function(require,module,exports){
+},{"../theLib/ContextMixin":"/Users/edjafarov/work/fluxnot/theLib/ContextMixin.js","./UserItem":"/Users/edjafarov/work/fluxnot/components/UserItem.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/main.js":[function(require,module,exports){
 var React = require('react');
 var Router = require('react-router');
 var $__0=      Router,Route=$__0.Route,RouteHandler=$__0.RouteHandler,Link=$__0.Link;
@@ -317,9 +418,44 @@ UsersMock = [
 ];
 
 
+/*****
+
+Action
+  inside action I should have access to data/request/emit 
+  data - input
+  request - input
+  emit - server, new each other, client the same each time
+Store
+  store shoul be new each time on server and single on client
+  inside store I should have access to actions emitter and emit self
+Component
+  should have access to store/context, to action triggring
 
 
 
+context.actions.on() --> in store
+
+context.$render = function(){
+  this.context.stores(soreName).on... (component)
+  context.actions.doAction() (component)
+}
+*/
+
+var AppComponent = require('./components/App');
+var UsersList = require('./components/UsersList');
+var UserDetails = require('./components/UserDetails');
+var NewUserForm = require('./components/NewUserForm');
+var actions = require('./actions/actions')
+
+var routes = (
+  React.createElement(Route, {handler: AppComponent}, 
+    React.createElement(Route, {name: "users", path: "users", handler: UsersList, action: actions.users.usersList}, 
+      React.createElement(Route, {name: "userCreate", path: "create", handler: NewUserForm, action: actions.users.userCreate}), 
+      React.createElement(Route, {name: "user", path: ":userId", handler: UserDetails, action: actions.users.user}), 
+      React.createElement(Route, {name: "userEdit", path: ":userId/edit", handler: NewUserForm, action: actions.users.userEdit})
+    )
+  )
+);
 
 
 var appCfg = {
@@ -332,9 +468,7 @@ var appCfg = {
       return Router.run(routes, Router.HistoryLocation, cb);
     }
   },
-  context: { //we need to define what actions and stores we will use
-    routingActions: require("./routingActions/routingActions"),
-    appActions: require("./appActions/appActions"),
+  stores: { //we need to define what actions and stores we will use
     UserFormStore: require("./stores/UserFormStore"),
     UserStore: require("./stores/UserStore"),
     UsersStore: require("./stores/UsersStore")  
@@ -345,107 +479,72 @@ var appCfg = {
 //Read Template
 if(FluxNot.isServer) var indexTemplate = require('fs').readFileSync("./index.html")
 
+var appActions = require("./appActions/appActions")();
+var ReactRouterAdapter = require("./theLib/ReactRouterAdapter");
+
+ReactRouterAdapter.parseActions(routes).forEach(function(route){
+  appActions.actionsRouter.create(route.path, route.action);
+})
+
 
 var createApp = require("./theLib/RouteHandler");
 var app = createApp(appCfg);
 
 module.exports =  {
-  mixin: {
-    //context mixin for React compoennts
-    contextTypes: Object.keys(app.context).reduce(function(types, name){
-      types[name] = React.PropTypes.object.isRequired;
-      return types;
-    },{})
-  },
   middleware: function(req, res){
     // render as HTML
     app.renderUrl(req.originalUrl, function(Handler, state){
       // this.render - define context render function
-      state.render = function(){
-        React.withContext(state, function(){ // render the Handler with current context
+      state.$render = function(){
+        //PUT doAction in components context
+        var doAction = appActions.withContext(state).doAction;
+
+        React.withContext({actions:doAction, stores: state.stores}, function(){ // render the Handler with current context
           var renderedApp = React.renderToString(React.createElement(Handler, null));
           res.end(indexTemplate.toString().replace('<body>','<body><div id="content">' + renderedApp + '<div>'));
         })
       }
+      
       // check routes to trigger
       var urlsMatched = this.routes.map(function(route){
         return route.path;
       });
-     
+      
       if(urlsMatched.length > 0){
-        // trigger routing actions
-        state.routingActions.doAction.call(this, urlsMatched, null, this);
+        // trigger routing actions within the context
+        appActions.doAction.call(this, urlsMatched, null, this);
       } else {
-        this.render()
+        this.$render()
       }
     })
   }
 }
 
 
-var AppComponent = require('./components/App');
-var UsersList = require('./components/UsersList');
-var UserDetails = require('./components/UserDetails');
 
-var routes = (
-  React.createElement(Route, {handler: AppComponent}, 
-    React.createElement(Route, {name: "users", path: "users", handler: UsersList}, 
-      React.createElement(Route, {name: "user", path: "user/:userId", handler: UserDetails})
-    )
-  )
-);
 
 
 if(app.isClient) { //If client - init the app, on route change set up context and trigger routing actions
   app.initApp(function(Handler, state){
-      state.render = function(){
-        React.withContext(state, function(){
+      //state.appActions.context.app = state.app;
+      state.$render = function(){
+        var doAction = appActions.withContext(state).doAction;
+        React.withContext({actions:doAction, stores: state.stores}, function(){
           React.render(React.createElement(Handler, null), document.getElementById('content'));
         })
       }
       var urlsMatched = this.routes.map(function(route){
         return route.path;
       });
-     
+      
       if(urlsMatched.length > 0){
-        state.routingActions.doAction.call(this, urlsMatched, null, this);
+        appActions.doAction.call(this, urlsMatched, null, this);
       } else {
-        this.render()
+        this.$render()
       }    
   });
 }
-/*
-var app = FluxNot(appCfg);
 
-
-
-
-app.doOnRoute(function(){
-  var urlsMatched = this.routes.map(function(route){
-    return route.path;
-  });
-
-  if(urlsMatched.length > 0 && !app.clientRenderedOnce){
-    onRoute.call(this, urlsMatched, null, this);
-  } else if (urlsMatched.length > 0 && app.clientRenderedOnce) {
-    onRoute.call(this, urlsMatched[urlsMatched.length - 1], null, this);
-  } else {
-    this._render()
-  }
-});
-
-if(!FluxNot.isClient) {
-  module.exports = function(){
-    return app;
-  }
-  
-} else {
-  var appIn = app.route();
-  module.exports = appIn;
-  appActions.defaultContext({
-    app: appIn
-  });
-}
 
 
 
@@ -481,7 +580,7 @@ request('/multifetch', {fetch:['/api/test', '/api/test1','/api/test1?tes={baz}',
 /*
 API:
 */
-},{"./appActions/appActions":"/Users/edjafarov/work/fluxnot/appActions/appActions.js","./components/App":"/Users/edjafarov/work/fluxnot/components/App.js","./components/UserDetails":"/Users/edjafarov/work/fluxnot/components/UserDetails.js","./components/UsersList":"/Users/edjafarov/work/fluxnot/components/UsersList.js","./routingActions/routingActions":"/Users/edjafarov/work/fluxnot/routingActions/routingActions.js","./stores/UserFormStore":"/Users/edjafarov/work/fluxnot/stores/UserFormStore.js","./stores/UserStore":"/Users/edjafarov/work/fluxnot/stores/UserStore.js","./stores/UsersStore":"/Users/edjafarov/work/fluxnot/stores/UsersStore.js","./theLib/FluxNot":"/Users/edjafarov/work/fluxnot/theLib/FluxNot.js","./theLib/RouteHandler":"/Users/edjafarov/work/fluxnot/theLib/RouteHandler.js","es6-promise":"/Users/edjafarov/work/fluxnot/node_modules/es6-promise/dist/es6-promise.js","fs":"/Users/edjafarov/work/fluxnot/node_modules/browserify/lib/_empty.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/node_modules/browserify/lib/_empty.js":[function(require,module,exports){
+},{"./actions/actions":"/Users/edjafarov/work/fluxnot/actions/actions.js","./appActions/appActions":"/Users/edjafarov/work/fluxnot/appActions/appActions.js","./components/App":"/Users/edjafarov/work/fluxnot/components/App.js","./components/NewUserForm":"/Users/edjafarov/work/fluxnot/components/NewUserForm.js","./components/UserDetails":"/Users/edjafarov/work/fluxnot/components/UserDetails.js","./components/UsersList":"/Users/edjafarov/work/fluxnot/components/UsersList.js","./stores/UserFormStore":"/Users/edjafarov/work/fluxnot/stores/UserFormStore.js","./stores/UserStore":"/Users/edjafarov/work/fluxnot/stores/UserStore.js","./stores/UsersStore":"/Users/edjafarov/work/fluxnot/stores/UsersStore.js","./theLib/FluxNot":"/Users/edjafarov/work/fluxnot/theLib/FluxNot.js","./theLib/ReactRouterAdapter":"/Users/edjafarov/work/fluxnot/theLib/ReactRouterAdapter.js","./theLib/RouteHandler":"/Users/edjafarov/work/fluxnot/theLib/RouteHandler.js","es6-promise":"/Users/edjafarov/work/fluxnot/node_modules/es6-promise/dist/es6-promise.js","fs":"/Users/edjafarov/work/fluxnot/node_modules/browserify/lib/_empty.js","react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/node_modules/browserify/lib/_empty.js":[function(require,module,exports){
 
 },{}],"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/buffer/index.js":[function(require,module,exports){
 /*!
@@ -26574,105 +26673,7 @@ module.exports = warning;
 },{"./emptyFunction":"/Users/edjafarov/work/fluxnot/node_modules/react/lib/emptyFunction.js","_process":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/process/browser.js"}],"/Users/edjafarov/work/fluxnot/node_modules/react/react.js":[function(require,module,exports){
 module.exports = require('./lib/ReactWithAddons');
 
-},{"./lib/ReactWithAddons":"/Users/edjafarov/work/fluxnot/node_modules/react/lib/ReactWithAddons.js"}],"/Users/edjafarov/work/fluxnot/routingActions/routingActions.js":[function(require,module,exports){
-module.exports = function(){
-  var routingActions = require("../theLib/Actions")();
-  var FluxNot = require('../theLib/FluxNot');
-
-  require("./users/UsersActions")(routingActions.actionsRouter);
-
-  routingActions.actionsPipe
-  .then(log)
-  .then(renderIfClient)
-  .then(routingActions.actionsRouter)
-  .then(renderIfServer)
-  .then(log)
-  .catch(logErrorAction)
-
-
-  var clientRederedOnce = false;
-
-  function renderIfClient(data){
-    if(FluxNot.isClient && clientRederedOnce && this.path) {
-      this.render();
-      clientRederedOnce = true;
-    }
-    return data;
-  }
-
-  function renderIfServer(result){
-    if(this.path && (!FluxNot.isClient || !clientRederedOnce)) {
-      if(this._emitted) throw new Error("Action could not be finalized twice: " + actionName);
-      this._emitted = true;
-      this.render();
-    }
-    return result;
-  }
-
-
-  function log(data){
-    
-    if(this.path){
-      console.log(["Url Action, path:", this.path].join(''));
-      if(this.query) console.log(["            query:", JSON.stringify(this.query)].join(''));
-      if(this.params) console.log(["            params:", JSON.stringify(this.params)].join(''));
-    } else {
-      console.log("Log:", data, this);
-    }
-    return data;
-  }
-
-
-  function logErrorAction(data){
-    console.log("ERROR:", this.actionName, data);
-    return data;
-  }
-
-return routingActions;
-}
-
-
-
-},{"../theLib/Actions":"/Users/edjafarov/work/fluxnot/theLib/Actions.js","../theLib/FluxNot":"/Users/edjafarov/work/fluxnot/theLib/FluxNot.js","./users/UsersActions":"/Users/edjafarov/work/fluxnot/routingActions/users/UsersActions.js"}],"/Users/edjafarov/work/fluxnot/routingActions/users/UsersActions.js":[function(require,module,exports){
-var Validator = require("../../Validators");
-var Router = require('react-router');
-var $__0=      Router,Route=$__0.Route,RouteHandler=$__0.RouteHandler,Link=$__0.Link;
-var Promise = require('es6-promise').Promise;
-
-
-module.exports = function(actions){
-	
-	actions.create('/users')
-	.then(function(data){
-	  var that = this;
-	  return new Promise(function(fulfil, rej){
-	    setTimeout( function(){
-	      fulfil(UsersMock);
-	    }, 400);
-	  })
-	}).then(function(response){
-	  this.emit("users:get", response);
-	  return response;
-	})
-
-
-	actions.create('/users/user/:userId')
-	.then(function(data){
-	  var that = this;
-	  return new Promise(function(fulfil, rej){
-	    setTimeout( function(){
-	      fulfil(UsersMock[that.params.userId]);
-	    }, 400);
-	  })
-	}).then(function(response){
-	  this.emit("user:get", response);
-	  return response;
-	})
-}
-
-
-
-},{"../../Validators":"/Users/edjafarov/work/fluxnot/Validators.js","es6-promise":"/Users/edjafarov/work/fluxnot/node_modules/es6-promise/dist/es6-promise.js","react-router":"/Users/edjafarov/work/fluxnot/node_modules/react-router/modules/index.js"}],"/Users/edjafarov/work/fluxnot/stores/UserFormStore.js":[function(require,module,exports){
+},{"./lib/ReactWithAddons":"/Users/edjafarov/work/fluxnot/node_modules/react/lib/ReactWithAddons.js"}],"/Users/edjafarov/work/fluxnot/stores/UserFormStore.js":[function(require,module,exports){
 var Emitter = require('events').EventEmitter;
 
 
@@ -26692,14 +26693,23 @@ var UserFormStore = Object.create(new Emitter(), {
 				context[name] = ctx[name];
 				return context;
 			}, this);
-			this.appActions.on('submit:newUser:rejected', this.updateUserErrors);
-			this.appActions.on('users:user:add', this.cleanStore);
+			this.actions.on('submit:newUser:rejected', this.updateUserErrors);
+			this.actions.on('users:user:add', this.cleanStore);
+			this.actions.on('users:user:clean', this.cleanStore);
+			this.actions.on('users:user:fill', this.fillData);
 			//Actions.on('submit:newUser', this.updateUserErrors);
 			
-			//Actions.on('/users/user/:userId/edit', this.updateUserToEdit);
+		}
+	},
+	fillData: { value: function(userData){
+			UserForm = {
+				data: userData
+			}
+			UserFormStore.emit('change', UserForm);
 		}
 	},
 	cleanStore: {value: function(){
+		console.log("CLEANING");
 		UserForm = {
 			data:{},
 			errors: []
@@ -26730,7 +26740,7 @@ var UserStore = Object.create(new Emitter(), {
 			context[name] = ctx[name];
 			return context;
 		}, this);		
-		this.routingActions.on("user:get", this.updateUser);
+		this.actions.on("user:get", this.updateUser);
 	}},
 	updateUser: {value: function(userData){
 		User = userData;
@@ -26757,8 +26767,8 @@ var UsersStore = Object.create(new Emitter(), {
 			context[name] = ctx[name];
 			return context;
 		}, this);		
-		this.appActions.on('users:user:add', this.addUser);
-		this.routingActions.on("users:get", this.updateUsers);
+		this.actions.on('users:user:add', this.addUser);
+		this.actions.on("users:get", this.updateUsers);
 	}},
 	addUser: {value:function(data){
 		Users.push(data);
@@ -26795,18 +26805,22 @@ module.exports = function(){
 	var actionObject = Object.create(new Emitter(), {
 		doAction: {
 			value: function(name, data, context){
-				context = context || {};
-				if(this.context){
-					context = Object.keys(this.context).reduce(function(ctx, name){
-						ctx[name] = this.context[name];
-						return ctx;
-					}.bind(this), context)
-				}
-							
+				if(!context) throw new Error("Context required for action");
+				context.emit = context.actions.emit.bind(context.actions);
 				context.actionName = name;
-				context.emit = actionObject.emit.bind(actionObject);
-
 				ActionPipe.call(context, data);
+			}
+		},
+		withContext: {
+			value: function(context){
+				var that = this;
+				return {
+					doAction: function(){
+						var arg = [].slice(arguments);
+						arg[2] = context;
+						that.doAction.apply(that, arg);
+					}
+				}
 			}
 		},
 		actionsPipe: {
@@ -26814,17 +26828,27 @@ module.exports = function(){
 		},
 		actionsRouter: {
 			value: doSpecificAction
-		},
-		init: {
-			value: function(ctx){
-				this.context = ctx;
-			}
 		}
 	});
 	return actionObject;
 }
 
-
+/*				var newContext = Object.keys(context).reduce(function(newContext, key){
+					newContext[key].value = context[key];
+					return newContext;
+				}, {})
+				var emitter = new Emitter();
+				context.emit = emitter.emit.bind(emitter);
+				context.on = emitter.on.bind(emitter);
+				///context = Object.create(new Emitter(), newContext);
+		
+				if(this.context){
+					context = Object.keys(this.context).reduce(function(ctx, name){
+						ctx[name] = this.context[name];
+						return ctx;
+					}.bind(this), context)
+				}
+*/						
 },{"./ActionsRouter":"/Users/edjafarov/work/fluxnot/theLib/ActionsRouter.js","./PromisePiper":"/Users/edjafarov/work/fluxnot/theLib/PromisePiper.js","events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}],"/Users/edjafarov/work/fluxnot/theLib/ActionsRouter.js":[function(require,module,exports){
 var Promise = require('es6-promise').Promise;
 var PromisePiper = require('./PromisePiper');
@@ -26844,10 +26868,11 @@ function getRouter(){
     return result;
   }
 
-  actionsRouter.create = function(name){
-    routes[name] = PromisePiper();
+  actionsRouter.create = function(name, pipe){
+    routes[name] = pipe || PromisePiper();
     return routes[name];
-  }  
+  }
+
   return actionsRouter;
 }
 
@@ -26863,7 +26888,27 @@ module.exports = getRouter;
 
 
 
-},{"./PromisePiper":"/Users/edjafarov/work/fluxnot/theLib/PromisePiper.js","es6-promise":"/Users/edjafarov/work/fluxnot/node_modules/es6-promise/dist/es6-promise.js"}],"/Users/edjafarov/work/fluxnot/theLib/FluxNot.js":[function(require,module,exports){
+},{"./PromisePiper":"/Users/edjafarov/work/fluxnot/theLib/PromisePiper.js","es6-promise":"/Users/edjafarov/work/fluxnot/node_modules/es6-promise/dist/es6-promise.js"}],"/Users/edjafarov/work/fluxnot/theLib/ContextMixin.js":[function(require,module,exports){
+var React = require('react');
+
+var ContextMixin = {
+	contextTypes: {
+    actions: React.PropTypes.func.isRequired,
+    stores: React.PropTypes.object.isRequired
+  },
+  bindContext: bindContext
+}
+
+function bindContext(){
+	if(this.context && this.context.app) {
+		Object.keys(this.context.app).forEach(function(name){
+			this[name] = this.context.app[name];
+		}.bind(this))
+	}
+}
+
+module.exports = ContextMixin;
+},{"react":"/Users/edjafarov/work/fluxnot/node_modules/react/react.js"}],"/Users/edjafarov/work/fluxnot/theLib/FluxNot.js":[function(require,module,exports){
 var Router = require('react-router');
 var Route = Router.Route;
 var React = require('react');
@@ -27079,8 +27124,8 @@ module.exports = {
 },{}],"/Users/edjafarov/work/fluxnot/theLib/PromisePiper.js":[function(require,module,exports){
 var Promise = require('es6-promise').Promise;
 
-function PromisePiper(){
-  var sequence = []
+function PromisePiper(sequence){
+  sequence = sequence || []
 
   var result = function(data){
     var chain = [].concat(sequence);
@@ -27096,6 +27141,17 @@ function PromisePiper(){
     fn.isCatch = true;
     sequence.push([fn]);
     return result;
+  }
+  result.join = function(){
+    var pipers = [].slice.call(arguments);
+    var sequences = pipers.map(function(pipe){
+      return pipe._getSequence();
+    });
+    var newSequence = sequence.concat.apply(sequence, sequences);
+    return PromisePiper(newSequence);
+  }
+  result._getSequence = function(){
+    return sequence;
   }
   return result;
 }
@@ -27147,9 +27203,57 @@ var pipe1 = PromisePiper()
   console.log(data)
 });
 
-pipe1(5)*/
+pipe1(5)
 
-},{"es6-promise":"/Users/edjafarov/work/fluxnot/node_modules/es6-promise/dist/es6-promise.js"}],"/Users/edjafarov/work/fluxnot/theLib/RouteHandler.js":[function(require,module,exports){
+var pipe2 = PromisePiper()
+.then(function(){
+  console.log("end")
+})
+
+pipe3 = pipe1.join(pipe2)
+
+pipe3(5)
+
+*/
+
+},{"es6-promise":"/Users/edjafarov/work/fluxnot/node_modules/es6-promise/dist/es6-promise.js"}],"/Users/edjafarov/work/fluxnot/theLib/ReactRouterAdapter.js":[function(require,module,exports){
+module.exports = {
+	parseActions: parse
+}
+
+function parse(routes){
+	var acts = [];
+	parseActions(routes);
+	function parseActions(comp, path){
+	  if(!comp.props) return;
+	  var result = {};
+	  if(comp.props.path) {
+	    result.path = path + "/" + comp.props.path; 
+	  }
+	  if(comp.props.name){
+	    result.name = comp.props.name;
+	  }
+	  if(comp.props.action){
+	    result.action = comp.props.action;
+	  }
+	  if(comp.props.children) {
+	  	if(comp.props.children instanceof Array){
+	  		comp.props.children.forEach(function(child){
+	  			parseActions(child, result.path || '');	
+	  		});
+	  	}else{
+	  		parseActions(comp.props.children, result.path || '');
+	  	}
+	  	
+	  }
+
+	  if(!result.path) result.path = "/";
+	  acts.push(result);
+	}
+	return acts;
+}
+},{}],"/Users/edjafarov/work/fluxnot/theLib/RouteHandler.js":[function(require,module,exports){
+var Emitter = require('events').EventEmitter;
 
 var isClient = true;
 try{
@@ -27158,14 +27262,7 @@ try{
   isClient = false;
 }
 
-var routes;
-function router(url, cb){
-	if(url){
-		return Router.run(routes, url, cb);
-	} else {
-		return Router.run(routes, Router.HistoryLocation, cb);
-	}
-}
+
 
 module.exports = function createApp(options){
 	if(!options.router) throw new Error("Router should be defined");
@@ -27173,12 +27270,17 @@ module.exports = function createApp(options){
 	var ctx = initContext();
 
 	function initContext(){
-		var ctx = Object.keys(options.context).reduce(function(context, factoryName){
-			context[factoryName] = options.context[factoryName]();
+		var ctx = {
+			stores:{},
+			actions: new Emitter()
+		}
+		var ctx = Object.keys(options.stores).reduce(function(context, factoryName){
+			context.stores[factoryName] = options.stores[factoryName]();
 			return context;
-		}, {});
-		Object.keys(ctx).forEach(function(name){
-			ctx[name].init(ctx);
+		}, ctx);
+		
+		Object.keys(ctx.stores).forEach(function(name){
+			ctx.stores[name].init(ctx);
 		});
 		return ctx;
 	}
@@ -27188,7 +27290,7 @@ module.exports = function createApp(options){
 			ctx = initContext();
 		}
 		return function(Handler, state){
-
+			state.app = this;
 			state = Object.keys(ctx).reduce(function(context, name){
 				context[name] = ctx[name];
 				return context;
@@ -27209,7 +27311,7 @@ module.exports = function createApp(options){
       options.router.call(this, url, handlerWrapper(cb, true));
     },
     initApp: function initApp(cb){
-    	options.router.call(this, null, handlerWrapper(cb));
+    	return options.router.call(this, null, handlerWrapper(cb));
     },
     context: ctx,
     isClient: isClient,
@@ -27217,4 +27319,4 @@ module.exports = function createApp(options){
   }
 }
 
-},{}]},{},["/Users/edjafarov/work/fluxnot/main.js"]);
+},{"events":"/Users/edjafarov/work/fluxnot/node_modules/browserify/node_modules/events/events.js"}]},{},["/Users/edjafarov/work/fluxnot/main.js"]);

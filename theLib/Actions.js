@@ -15,18 +15,22 @@ module.exports = function(){
 	var actionObject = Object.create(new Emitter(), {
 		doAction: {
 			value: function(name, data, context){
-				context = context || {};
-				if(this.context){
-					context = Object.keys(this.context).reduce(function(ctx, name){
-						ctx[name] = this.context[name];
-						return ctx;
-					}.bind(this), context)
-				}
-							
+				if(!context) throw new Error("Context required for action");
+				context.emit = context.actions.emit.bind(context.actions);
 				context.actionName = name;
-				context.emit = actionObject.emit.bind(actionObject);
-
 				ActionPipe.call(context, data);
+			}
+		},
+		withContext: {
+			value: function(context){
+				var that = this;
+				return {
+					doAction: function(){
+						var arg = [].slice(arguments);
+						arg[2] = context;
+						that.doAction.apply(that, arg);
+					}
+				}
 			}
 		},
 		actionsPipe: {
@@ -34,13 +38,24 @@ module.exports = function(){
 		},
 		actionsRouter: {
 			value: doSpecificAction
-		},
-		init: {
-			value: function(ctx){
-				this.context = ctx;
-			}
 		}
 	});
 	return actionObject;
 }
 
+/*				var newContext = Object.keys(context).reduce(function(newContext, key){
+					newContext[key].value = context[key];
+					return newContext;
+				}, {})
+				var emitter = new Emitter();
+				context.emit = emitter.emit.bind(emitter);
+				context.on = emitter.on.bind(emitter);
+				///context = Object.create(new Emitter(), newContext);
+		
+				if(this.context){
+					context = Object.keys(this.context).reduce(function(ctx, name){
+						ctx[name] = this.context[name];
+						return ctx;
+					}.bind(this), context)
+				}
+*/						

@@ -2,15 +2,16 @@ var React = require('react');
 var Router = require('react-router');
 var { Route, RouteHandler, Link, Navigation } = Router;
 var UserItem = require('./UserItem');
-var ContextMixin = require("../main").mixin;
+var ContextMixin = require("../theLib/ContextMixin");
 
 module.exports = React.createClass({
+  displayName: "UserDetails",
   mixins: [ Router.State,  Navigation, ContextMixin ],
   getInitialState: function(){
-  	return {user: this.context.UserStore.get()};
+  	return {user: this.context.stores.UserStore.get()};
   },
   componentDidMount: function() {
-    this.context.UserStore.on('change', this.onUserChage);
+    this.context.stores.UserStore.on('change', this.onUserChage);
   },
   onUserChage: function(user){
     if(!this.isMounted()) return;
