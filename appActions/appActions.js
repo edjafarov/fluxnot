@@ -1,4 +1,5 @@
-var FluxNot = require('../theLib/FluxNot');
+var RouteHandler = require('../theLib/RouteHandler');
+var Chains = require('../theLib/Chains');
 
 module.exports = function(){
 		// create instance of appActions
@@ -12,43 +13,23 @@ module.exports = function(){
 
 	//log before
 	.then(log) 
-  .then(renderIfClient)
+  // render if is rendering on client
+  .then(Chains.renderIfClient)
 	//do real specific actions
 	.then(appActions.actionsRouter)
-  .then(renderIfServer)	
+
+  // render if rendering on server
+  .then(Chains.renderIfServer)	
 	//catch errors after
 	.catch(logErrorAction) 
 
 
-  var clientRederedOnce = false;
-
-  function renderIfClient(data){
-    if(FluxNot.isClient && clientRederedOnce && this.path) {
-      this.$render();
-      clientRederedOnce = true;
-    }
-    return data;
-  }
-
-  function renderIfServer(result){
-    if(this.path && (!FluxNot.isClient || !clientRederedOnce)) {
-      if(this._emitted) throw new Error("Action could not be finalized twice: " + actionName);
-      this._emitted = true;
-      try{
-        this.$render();
-      } catch (e){
-        console.log(e)
-      }
-      
-    }
-    return result;
-  }
-
+  
 
   function log(data){
     
     if(this.path){
-      console.log(["Url Action, path:", this.path].join(''));
+      console.log(["Url Action, path: ", this.path, " Action Name: ", this.actionName].join(''));
       if(this.query) console.log(["            query:", JSON.stringify(this.query)].join(''));
       if(this.params) console.log(["            params:", JSON.stringify(this.params)].join(''));
     } else {

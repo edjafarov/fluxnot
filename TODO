@@ -1,3 +1,3 @@
 ## backlog
 
-[ ] Move route Actions closer to Handler components
+[ ] AppActions - need to think how to get them from ReactRouterAdapter

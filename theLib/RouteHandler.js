@@ -10,6 +10,8 @@ try{
 
 
 module.exports = function createApp(options){
+	var stores = {};
+
 	if(!options.router) throw new Error("Router should be defined");
 	
 	var ctx = initContext();
@@ -19,15 +21,18 @@ module.exports = function createApp(options){
 			stores:{},
 			actions: new Emitter()
 		}
-		var ctx = Object.keys(options.stores).reduce(function(context, factoryName){
-			context.stores[factoryName] = options.stores[factoryName]();
+		Object.keys(stores).reduce(function(context, name){
+			context.stores[name] = initStore.call(ctx, stores[name]);
 			return context;
 		}, ctx);
-		
-		Object.keys(ctx.stores).forEach(function(name){
-			ctx.stores[name].init(ctx);
-		});
+
 		return ctx;
+	}
+
+	function initStore(storeFactory){
+		var store = storeFactory.call(this, this);
+		store.init();
+		return store;
 	}
 	
 	function handlerWrapper(cb, initNewContext){
@@ -56,10 +61,21 @@ module.exports = function createApp(options){
       options.router.call(this, url, handlerWrapper(cb, true));
     },
     initApp: function initApp(cb){
+    	if(!isClient) return;
     	return options.router.call(this, null, handlerWrapper(cb));
     },
     context: ctx,
     isClient: isClient,
-		isServer: !isClient
+		isServer: !isClient,
+		whenClient: function(handler){
+			if(isClient) handler.call(this);
+		},
+		use: function(as, store){
+			stores[as] = store;
+			ctx.stores[as] = initStore.call(ctx, store);
+		}
   }
 }
+
+module.exports.isClient = isClient;
+module.exports.isServer = !isClient;

@@ -1,15 +1,11 @@
 var Emitter = require('events').EventEmitter;
 
-module.exports = function(){
+module.exports = function(context){
 var User = [];
 
 var UserStore = Object.create(new Emitter(), {
-	init: {value: function(ctx){
-		Object.keys(ctx).reduce(function(context, name){
-			context[name] = ctx[name];
-			return context;
-		}, this);		
-		this.actions.on("user:get", this.updateUser);
+	init: {value: function(){
+		context.actions.on("user:get", this.updateUser);
 	}},
 	updateUser: {value: function(userData){
 		User = userData;
@@ -23,4 +19,3 @@ var UserStore = Object.create(new Emitter(), {
 
 return UserStore;
 }
-//module.exports = UserStore;

@@ -1,5 +1,18 @@
+var Router = require('react-router');
+
 module.exports = {
-	parseActions: parse
+	parseActions: parse,
+	routerAdapter: function(routes){
+		return function (url, cb){ // the router accepts url and cb
+	    if(url){
+	      // pass the url if defined
+	      return Router.run(routes, url, cb);
+	    } else {
+	      // set up the router listener for browser
+	      return Router.run(routes, Router.HistoryLocation, cb);
+	    }
+	  }
+	}
 }
 
 function parse(routes){

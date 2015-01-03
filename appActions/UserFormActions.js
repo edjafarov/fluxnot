@@ -26,11 +26,13 @@ or
 
 
 function submit(data){
-	data.id = UsersMock.length;
-  this.emit('users:user:add', data); 
-  console.log(this);
+	if(data.id){
+		this.emit('users:user:edit', data); 	
+	} else {
+		data.id = UsersMock.length;
+	  this.emit('users:user:add', data); 
+	}
   this.app.transitionTo('user', {userId: data.id});
-
   return data;
 }
 

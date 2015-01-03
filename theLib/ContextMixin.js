@@ -2,7 +2,7 @@ var React = require('react');
 
 var ContextMixin = {
 	contextTypes: {
-    actions: React.PropTypes.func.isRequired,
+    doAction: React.PropTypes.func.isRequired,
     stores: React.PropTypes.object.isRequired
   },
   bindContext: bindContext

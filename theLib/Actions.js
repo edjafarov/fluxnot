@@ -26,7 +26,7 @@ module.exports = function(){
 				var that = this;
 				return {
 					doAction: function(){
-						var arg = [].slice(arguments);
+						var arg = [].slice.call(arguments);
 						arg[2] = context;
 						that.doAction.apply(that, arg);
 					}

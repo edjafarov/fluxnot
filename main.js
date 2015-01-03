@@ -2,11 +2,9 @@ var React = require('react');
 var Router = require('react-router');
 var { Route, RouteHandler, Link } = Router;
 
-
-
 var Promise = require('es6-promise').Promise;
-var FluxNot = require('./theLib/FluxNot');
-
+var RouteHandler = require('./theLib/RouteHandler');
+var ReactRouterAdapter = require("./theLib/ReactRouterAdapter");
 
 UsersMock = [
   {
@@ -29,30 +27,6 @@ UsersMock = [
   }
 ];
 
-
-/*****
-
-Action
-  inside action I should have access to data/request/emit 
-  data - input
-  request - input
-  emit - server, new each other, client the same each time
-Store
-  store shoul be new each time on server and single on client
-  inside store I should have access to actions emitter and emit self
-Component
-  should have access to store/context, to action triggring
-
-
-
-context.actions.on() --> in store
-
-context.$render = function(){
-  this.context.stores(soreName).on... (component)
-  context.actions.doAction() (component)
-}
-*/
-
 var AppComponent = require('./components/App');
 var UsersList = require('./components/UsersList');
 var UserDetails = require('./components/UserDetails');
@@ -71,28 +45,15 @@ var routes = (
 
 
 var appCfg = {
-  router: function(url, cb){ // the router accepts url and cb
-    if(url){
-      // pass the url if defined
-      return Router.run(routes, url, cb);
-    } else {
-      // set up the router listener for browser
-      return Router.run(routes, Router.HistoryLocation, cb);
-    }
-  },
-  stores: { //we need to define what actions and stores we will use
-    UserFormStore: require("./stores/UserFormStore"),
-    UserStore: require("./stores/UserStore"),
-    UsersStore: require("./stores/UsersStore")  
-  }
+  router: ReactRouterAdapter.routerAdapter(routes)
 };
 
 
 //Read Template
-if(FluxNot.isServer) var indexTemplate = require('fs').readFileSync("./index.html")
+if(RouteHandler.isServer) var indexTemplate = require('fs').readFileSync("./index.html")
 
 var appActions = require("./appActions/appActions")();
-var ReactRouterAdapter = require("./theLib/ReactRouterAdapter");
+
 
 ReactRouterAdapter.parseActions(routes).forEach(function(route){
   appActions.actionsRouter.create(route.path, route.action);
@@ -100,63 +61,51 @@ ReactRouterAdapter.parseActions(routes).forEach(function(route){
 
 
 var createApp = require("./theLib/RouteHandler");
+
 var app = createApp(appCfg);
 
-module.exports =  {
-  middleware: function(req, res){
-    // render as HTML
-    app.renderUrl(req.originalUrl, function(Handler, state){
-      // this.render - define context render function
-      state.$render = function(){
-        //PUT doAction in components context
-        var doAction = appActions.withContext(state).doAction;
+app.use('UserFormStore', require("./stores/UserFormStore"));
+app.use('UserStore', require("./stores/UserStore"));
+app.use('UsersStore', require("./stores/UsersStore"));
 
-        React.withContext({actions:doAction, stores: state.stores}, function(){ // render the Handler with current context
-          var renderedApp = React.renderToString(<Handler/>);
-          res.end(indexTemplate.toString().replace('<body>','<body><div id="content">' + renderedApp + '<div>'));
-        })
-      }
-      
-      // check routes to trigger
-      var urlsMatched = this.routes.map(function(route){
-        return route.path;
-      });
-      
-      if(urlsMatched.length > 0){
-        // trigger routing actions within the context
-        appActions.doAction.call(this, urlsMatched, null, this);
-      } else {
-        this.$render()
-      }
-    })
+
+
+
+
+module.exports =  function(req, res){
+  // render as HTML
+  app.renderUrl(req.originalUrl, appHandler(function(){
+    var renderedApp = React.renderToString(<this.Handler/>);
+    res.end(indexTemplate.toString().replace('<body>','<body><div id="content">' + renderedApp + '<div>'));
+  }));
+}
+
+//If client - init the app, on route change set up context and trigger routing actions
+app.initApp(appHandler(function(){
+  React.render(<this.Handler/>, document.getElementById('content'));
+}));
+
+
+
+
+function appHandler(renderStuff){
+  return function (Handler, state){
+    state.$render = function(){
+      state.routeAction = false;
+      var doAction = appActions.withContext(state).doAction;
+      React.withContext({doAction:doAction, stores: state.stores}, renderStuff.bind({Handler:Handler}));
+    }
+    var urlsMatched = this.routes.map(function(route){
+      return route.path;
+    });
+    this.routeAction = true;
+    if(urlsMatched.length > 0){
+      appActions.doAction.call(this, urlsMatched, null, this);
+    } else {
+      this.$render()
+    }    
   }
 }
-
-
-
-
-
-if(app.isClient) { //If client - init the app, on route change set up context and trigger routing actions
-  app.initApp(function(Handler, state){
-      //state.appActions.context.app = state.app;
-      state.$render = function(){
-        var doAction = appActions.withContext(state).doAction;
-        React.withContext({actions:doAction, stores: state.stores}, function(){
-          React.render(<Handler/>, document.getElementById('content'));
-        })
-      }
-      var urlsMatched = this.routes.map(function(route){
-        return route.path;
-      });
-      
-      if(urlsMatched.length > 0){
-        appActions.doAction.call(this, urlsMatched, null, this);
-      } else {
-        this.$render()
-      }    
-  });
-}
-
 
 
 

@@ -2,6 +2,7 @@ var Promise = require('es6-promise').Promise;
 var PromisePiper = require("../theLib/PromisePiper");
 
 module.exports = {
+	
 	usersList: PromisePiper().then(function(data){
 	  var that = this;
 	  return new Promise(function(fulfil, rej){

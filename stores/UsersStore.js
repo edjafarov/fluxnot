@@ -1,16 +1,17 @@
 var Emitter = require('events').EventEmitter;
-module.exports = function(){
+module.exports = function(context){
 
 var Users = [];
 
 var UsersStore = Object.create(new Emitter(), {
-	init: {value:function(ctx){
-		Object.keys(ctx).reduce(function(context, name){
-			context[name] = ctx[name];
-			return context;
-		}, this);		
-		this.actions.on('users:user:add', this.addUser);
-		this.actions.on("users:get", this.updateUsers);
+	init: {value:function(){	
+		context.actions.on('users:user:edit', this.editUser);
+		context.actions.on('users:user:add', this.addUser);
+		context.actions.on("users:get", this.updateUsers);
+	}},
+	editUser: {value:function(data){
+		Users[data.id] = data;
+		UsersStore.emit('change', Users);
 	}},
 	addUser: {value:function(data){
 		Users.push(data);
@@ -28,4 +29,3 @@ var UsersStore = Object.create(new Emitter(), {
 
 	return UsersStore;
 }
-//module.exports = UsersStore;

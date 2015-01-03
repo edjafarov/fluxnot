@@ -1,7 +1,7 @@
 var Emitter = require('events').EventEmitter;
 
 
-module.exports = function(){
+module.exports = function(context){
 
 
 var UserForm = {
@@ -12,17 +12,11 @@ var UserForm = {
 
 var UserFormStore = Object.create(new Emitter(), {
 	init: {
-		value: 	function(ctx){
-			Object.keys(ctx).reduce(function(context, name){
-				context[name] = ctx[name];
-				return context;
-			}, this);
-			this.actions.on('submit:newUser:rejected', this.updateUserErrors);
-			this.actions.on('users:user:add', this.cleanStore);
-			this.actions.on('users:user:clean', this.cleanStore);
-			this.actions.on('users:user:fill', this.fillData);
-			//Actions.on('submit:newUser', this.updateUserErrors);
-			
+		value: 	function(){
+			context.actions.on('submit:newUser:rejected', this.updateUserErrors);
+			context.actions.on('users:user:add', this.cleanStore);
+			context.actions.on('users:user:clean', this.cleanStore);
+			context.actions.on('users:user:fill', this.fillData);
 		}
 	},
 	fillData: { value: function(userData){
