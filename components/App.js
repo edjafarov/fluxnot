@@ -28,7 +28,3 @@ module.exports = React.createClass({
   }
 });
 
-module.exports.action = PromisePiper().
-then(function(){
-  console.log("Trigger main APP");
-});

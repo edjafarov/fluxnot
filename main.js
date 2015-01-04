@@ -83,16 +83,17 @@ function appStart(){
   if(RouteHandler.isServer) var indexTemplate = require('fs').readFileSync("./index.html")
 
 
-  module.exports =  function(req, res){
+  module.exports =  function(req, res, next){
     // render as HTML
-    app.renderUrl(req.originalUrl, appHandler(function(){
+    app.renderUrl(req.originalUrl, appHandler(function(err){
+      if(err) return next(); // put custom error handling here, so far only 404
       var renderedApp = React.renderToString(<this.Handler/>);
       res.end(indexTemplate.toString().replace('<body>','<body><div id="content">' + renderedApp + '<div>'));
     }));
   }
 
   //If client - init the app, on route change set up context and trigger routing actions
-  app.initApp(appHandler(function(){
+  app.initApp(appHandler(function(err){
     React.render(<this.Handler/>, document.getElementById('content'));
   }));
 
@@ -101,6 +102,9 @@ function appStart(){
 
   function appHandler(renderStuff){
     return function (Handler, state){
+      if(state.routes.length == 0){ //404
+        return renderStuff(new Error("404"));
+      }
       state.$render = function(){
         state.routeAction = false;
         var doAction = appActions.withContext(state).doAction;
