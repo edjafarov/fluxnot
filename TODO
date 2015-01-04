@@ -1,3 +1,9 @@
 ## backlog
 
-[ ] AppActions - need to think how to get them from ReactRouterAdapter
+[ ] cookies passing / session handling
+[ ] API resource
+[ ] Rest API resource
+[ ] Multifetch
+[ ] REST API resource caching strategy
+[ ] REST API resource offline strategy
+

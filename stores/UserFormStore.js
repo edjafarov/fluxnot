@@ -1,4 +1,4 @@
-var Emitter = require('events').EventEmitter;
+var Store = require("../theLib/BasicStore");
 
 
 module.exports = function(context){
@@ -10,37 +10,35 @@ var UserForm = {
 };
 
 
-var UserFormStore = Object.create(new Emitter(), {
-	init: {
-		value: 	function(){
+var UserFormStore = Store.create({
+	init: function(){
 			context.actions.on('submit:newUser:rejected', this.updateUserErrors);
 			context.actions.on('users:user:add', this.cleanStore);
 			context.actions.on('users:user:clean', this.cleanStore);
-			context.actions.on('users:user:fill', this.fillData);
-		}
+			context.actions.on('users:user:fill', this.fillData);		
 	},
-	fillData: { value: function(userData){
+	fillData: function(userData){
 			UserForm = {
 				data: userData
 			}
 			UserFormStore.emit('change', UserForm);
-		}
+		
 	},
-	cleanStore: {value: function(){
+	cleanStore: function(){
 		console.log("CLEANING");
 		UserForm = {
 			data:{},
 			errors: []
 		};
 		UserFormStore.emit('change', UserForm);
-	}},
-	updateUserErrors: {value: function(errorData){
+	},
+	updateUserErrors: function(errorData){
 		UserForm.errors = errorData;
 		UserFormStore.emit('change', UserForm);
-	}},
-	get:{value: function(){
+	},
+	get: function(){
 		return UserForm;
-	}}
+	}
 })
 
 

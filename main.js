@@ -1,7 +1,6 @@
 var React = require('react');
 var Router = require('react-router');
 var { Route, RouteHandler, Link } = Router;
-
 var Promise = require('es6-promise').Promise;
 var RouteHandler = require('./theLib/RouteHandler');
 var ReactRouterAdapter = require("./theLib/ReactRouterAdapter");
@@ -35,30 +34,24 @@ var actions = require('./actions/actions')
 
 var routes = (
   <Route handler={AppComponent}>
-    <Route name="users" path="users" handler={UsersList} action={actions.users.usersList}>
+    <Route name="users" path="users" 
+                        handler={UsersList} 
+                        action={actions.users.usersList}>
+      
       <Route name="userCreate" path="create" handler={NewUserForm} action={actions.users.userCreate}/>
       <Route name="user" path=":userId" handler={UserDetails} action={actions.users.user}/>
       <Route name="userEdit" path=":userId/edit" handler={NewUserForm} action={actions.users.userEdit}/>
+    
     </Route>
   </Route>
 );
 
-
+// create app Actions
+var appActions = require("./appActions/appActions")();
+//configure APP
 var appCfg = {
   router: ReactRouterAdapter.routerAdapter(routes)
 };
-
-
-//Read Template
-if(RouteHandler.isServer) var indexTemplate = require('fs').readFileSync("./index.html")
-
-var appActions = require("./appActions/appActions")();
-
-
-ReactRouterAdapter.parseActions(routes).forEach(function(route){
-  appActions.actionsRouter.create(route.path, route.action);
-})
-
 
 var createApp = require("./theLib/RouteHandler");
 
@@ -70,44 +63,62 @@ app.use('UsersStore', require("./stores/UsersStore"));
 
 
 
-
-
-module.exports =  function(req, res){
-  // render as HTML
-  app.renderUrl(req.originalUrl, appHandler(function(){
-    var renderedApp = React.renderToString(<this.Handler/>);
-    res.end(indexTemplate.toString().replace('<body>','<body><div id="content">' + renderedApp + '<div>'));
-  }));
-}
-
-//If client - init the app, on route change set up context and trigger routing actions
-app.initApp(appHandler(function(){
-  React.render(<this.Handler/>, document.getElementById('content'));
-}));
+appStart();
 
 
 
 
-function appHandler(renderStuff){
-  return function (Handler, state){
-    state.$render = function(){
-      state.routeAction = false;
-      var doAction = appActions.withContext(state).doAction;
-      React.withContext({doAction:doAction, stores: state.stores}, renderStuff.bind({Handler:Handler}));
-    }
-    var urlsMatched = this.routes.map(function(route){
-      return route.path;
-    });
-    this.routeAction = true;
-    if(urlsMatched.length > 0){
-      appActions.doAction.call(this, urlsMatched, null, this);
-    } else {
-      this.$render()
-    }    
+
+
+
+
+function appStart(){
+
+  // parse routes for 
+  ReactRouterAdapter.parseActions(routes).forEach(function(route){
+    appActions.actionsRouter.create(route.path, route.action);
+  })
+
+  //Read Template
+  if(RouteHandler.isServer) var indexTemplate = require('fs').readFileSync("./index.html")
+
+
+  module.exports =  function(req, res){
+    // render as HTML
+    app.renderUrl(req.originalUrl, appHandler(function(){
+      var renderedApp = React.renderToString(<this.Handler/>);
+      res.end(indexTemplate.toString().replace('<body>','<body><div id="content">' + renderedApp + '<div>'));
+    }));
   }
+
+  //If client - init the app, on route change set up context and trigger routing actions
+  app.initApp(appHandler(function(){
+    React.render(<this.Handler/>, document.getElementById('content'));
+  }));
+
+
+
+
+  function appHandler(renderStuff){
+    return function (Handler, state){
+      state.$render = function(){
+        state.routeAction = false;
+        var doAction = appActions.withContext(state).doAction;
+        React.withContext({doAction:doAction, stores: state.stores}, renderStuff.bind({Handler:Handler}));
+      }
+      var urlsMatched = this.routes.map(function(route){
+        return route.path;
+      });
+      this.routeAction = true;
+      if(urlsMatched.length > 0){
+        appActions.doAction.call(this, urlsMatched, null, this);
+      } else {
+        this.$render()
+      }    
+    }
+  }
+
 }
-
-
 
 
 

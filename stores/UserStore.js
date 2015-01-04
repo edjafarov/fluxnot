@@ -1,19 +1,19 @@
-var Emitter = require('events').EventEmitter;
+var Store = require("../theLib/BasicStore");
 
 module.exports = function(context){
 var User = [];
 
-var UserStore = Object.create(new Emitter(), {
-	init: {value: function(){
+var UserStore = Store.create({
+	init: function(){
 		context.actions.on("user:get", this.updateUser);
-	}},
-	updateUser: {value: function(userData){
+	},
+	updateUser: function(userData){
 		User = userData;
 		UserStore.emit('change', User);
-	}},
-	get: {value: function(){
+	},
+	get:  function(){
 		return User;
-	}}
+	}
 }); 
 
 
