@@ -1,12 +1,12 @@
 ## backlog
 
+[ ] API resource
 [ ] error handling
 		- catch errors in promise pipe
 		- the pipe should definitely say where the error was performed
 		- stores should be snapshotted and saved in localstorage
 		- actions should be recorded over time in localstorage
 [ ] cookies passing / session handling
-[ ] API resource
 [ ] Rest API resource
 [ ] Multifetch
 [ ] REST API resource caching strategy

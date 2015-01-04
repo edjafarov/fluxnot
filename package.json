@@ -5,7 +5,14 @@
   "main": "index.js",
   "dependencies": {
     "browserify": "~6.3.3",
-    "express": "~4.10.4"
+    "express": "~4.10.4",
+    "superagent": "~0.21.0",
+    "es6-promise": "~2.0.1",
+    "node-jsx": "~0.12.4",
+    "react": "~0.12.2",
+    "react-router": "~0.11.6",
+    "reactify": "~0.17.1",
+    "watchify": "~2.2.1"
   },
   "devDependencies": {},
   "scripts": {
@@ -14,5 +21,5 @@
     "compile": "node node_modules/browserify/bin/cmd -t [ reactify --es6 ] main.js -o assets/bundle.js"
   },
   "author": "",
-  "license": "ISC"
+  "license": "MIT"
 }
