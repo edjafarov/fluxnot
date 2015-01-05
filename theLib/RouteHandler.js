@@ -39,13 +39,14 @@ module.exports = function createApp(options){
 		if(initNewContext){
 			ctx = initContext();
 		}
+		var that = this;
 		return function(Handler, state){
 			state.app = this;
 			state = Object.keys(ctx).reduce(function(context, name){
 				context[name] = ctx[name];
 				return context;
 			}, state);
-
+			if(that.request) state.request = that.request;
 			cb.call(state, Handler, state);
 		}
 	}
@@ -55,10 +56,10 @@ module.exports = function createApp(options){
   //init actions/routeActions/stores
   //each handler render with theese stores/actions/routes
   return {
-    renderUrl: function renderUrl(url, cb){
+    renderUrl: function renderUrl(req, cb){
       //create new actions/stores bind them to handler to render
       // context generation done once here, should do it each renderUrl and once initApp
-      options.router.call(this, url, handlerWrapper(cb, true));
+      options.router.call(this, req.originalUrl, handlerWrapper.call({request: req}, cb, true));
     },
     initApp: function initApp(cb){
     	if(!isClient) return;

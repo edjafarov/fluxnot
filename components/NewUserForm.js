@@ -17,6 +17,9 @@ module.exports = React.createClass({
     this.replaceState(data);
   },
   submit: function(){
+    if(this.state.data && this.state.data.id) {
+      return this.context.doAction('submit:editUser', this.state.data);  
+    }
 		this.context.doAction('submit:newUser', this.state.data);
   },
   render: function () {
@@ -48,3 +51,4 @@ module.exports = React.createClass({
     );
   }
 });
+

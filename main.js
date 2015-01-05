@@ -5,26 +5,7 @@ var Promise = require('es6-promise').Promise;
 var RouteHandler = require('./theLib/RouteHandler');
 var ReactRouterAdapter = require("./theLib/ReactRouterAdapter");
 
-UsersMock = [
-  {
-    id: 0,
-    name: "Bob",
-    age: 23,
-    bio: "stuff"
-  },
-  {
-    id: 1,
-    name: "Sally",
-    age: 33,
-    bio: "stuff1"
-  },
-  {
-    id: 2,
-    name: "John",
-    age: 22,
-    bio: "stuff2"
-  }
-];
+
 
 var AppComponent = require('./components/App');
 var UsersList = require('./components/UsersList');
@@ -57,18 +38,15 @@ var createApp = require("./theLib/RouteHandler");
 
 var app = createApp(appCfg);
 
+
 app.use('UserFormStore', require("./stores/UserFormStore"));
 app.use('UserStore', require("./stores/UserStore"));
 app.use('UsersStore', require("./stores/UsersStore"));
 
-
-
 appStart();
 
 
-
-
-
+require('./theLib/Resource');
 
 
 
@@ -85,9 +63,10 @@ function appStart(){
 
   module.exports =  function(req, res, next){
     // render as HTML
-    app.renderUrl(req.originalUrl, appHandler(function(err){
+    app.renderUrl(req, appHandler(function(err){
       if(err) return next(); // put custom error handling here, so far only 404
       var renderedApp = React.renderToString(<this.Handler/>);
+      console.log(this.stores);
       res.end(indexTemplate.toString().replace('<body>','<body><div id="content">' + renderedApp + '<div>'));
     }));
   }
@@ -108,7 +87,8 @@ function appStart(){
       state.$render = function(){
         state.routeAction = false;
         var doAction = appActions.withContext(state).doAction;
-        React.withContext({doAction:doAction, stores: state.stores}, renderStuff.bind({Handler:Handler}));
+        React.withContext({doAction:doAction, stores: state.stores}, 
+          renderStuff.bind({Handler:Handler, stores: state.stores}));
       }
       var urlsMatched = this.routes.map(function(route){
         return route.path;

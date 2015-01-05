@@ -1,7 +1,7 @@
 var Validator = require("../Validators");
 var Router = require('react-router');
 var { Route, RouteHandler, Link } = Router;
-
+var Resource = require('../theLib/Resource');
 
 
 module.exports = function(actions){
@@ -11,7 +11,18 @@ module.exports = function(actions){
 	.then(Validator.isLonger('name').then(5))
 	.then(Validator.isRequired('age'))
 	.then(ifValidationRejected)
-	.then(submit)
+	.then(Resource.post('/api/users'))
+	.then(submitted)
+	.catch(emitFormError);
+
+
+	actions.create("submit:editUser")
+	.then(Validator.isRequired('name'))
+	.then(Validator.isLonger('name').then(5))
+	.then(Validator.isRequired('age'))
+	.then(ifValidationRejected)
+	.then(Resource.put('/api/users/:userId'))
+	.then(submitted)
 	.catch(emitFormError);
 	
 }
@@ -24,14 +35,15 @@ or
 ]))
 */
 
+function edited(data){
+	this.emit('users:user:edit', data); 	
+  this.app.transitionTo('user', {userId: data.id});
+  return data;
+}
 
-function submit(data){
-	if(data.id){
-		this.emit('users:user:edit', data); 	
-	} else {
-		data.id = UsersMock.length;
-	  this.emit('users:user:add', data); 
-	}
+
+function submitted(data){
+	this.emit('users:user:add', data); 
   this.app.transitionTo('user', {userId: data.id});
   return data;
 }
