@@ -4,11 +4,10 @@ var PromisePiper = require('./PromisePiper');
 
 function getRouter(){
   var routes = {};
-  var actionsRouter = function(data){
-    var actionNames = this.actionName instanceof Array?this.actionName:[this.actionName];
-    var that = this;
+  var actionsRouter = function(data, context){
+    var actionNames = context.actionName instanceof Array?context.actionName:[context.actionName];
     var promises = actionNames.reduce(function(promises, actionName){
-      if(routes[actionName]) promises.push(routes[actionName].call(that, data));
+      if(routes[actionName]) promises.push(routes[actionName].call(context, data, context));
       return promises; 
     }, []);
 

@@ -26,21 +26,21 @@ module.exports = function(){
 
   
 
-  function log(data){
+  function log(data, context){
     
-    if(this.path){
-      console.log(["Url Action, path: ", this.path, " Action Name: ", this.actionName].join(''));
-      if(this.query) console.log(["            query:", JSON.stringify(this.query)].join(''));
-      if(this.params) console.log(["            params:", JSON.stringify(this.params)].join(''));
+    if(context.path){
+      console.log(["Url Action, path: ", context.path, " Action Name: ", context.actionName].join(''));
+      if(context.query) console.log(["            query:", JSON.stringify(context.query)].join(''));
+      if(context.params) console.log(["            params:", JSON.stringify(context.params)].join(''));
     } else {
-      console.log("Log:", data, this);
+      console.log("Log:", data, context);
     }
     return data;
   }
 
 
-  function logErrorAction(data){
-    console.log("ERROR:", this.actionName, data);
+  function logErrorAction(data, context){
+    console.log("ERROR:", context.actionName, data);
     return data;
   }
 

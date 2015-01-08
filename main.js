@@ -66,7 +66,6 @@ function appStart(){
     app.renderUrl(req, appHandler(function(err){
       if(err) return next(); // put custom error handling here, so far only 404
       var renderedApp = React.renderToString(<this.Handler/>);
-      console.log(this.stores);
       res.end(indexTemplate.toString().replace('<body>','<body><div id="content">' + renderedApp + '<div>'));
     }));
   }
@@ -90,12 +89,12 @@ function appStart(){
         React.withContext({doAction:doAction, stores: state.stores}, 
           renderStuff.bind({Handler:Handler, stores: state.stores}));
       }
-      var urlsMatched = this.routes.map(function(route){
+      var urlsMatched = state.routes.map(function(route){
         return route.path;
       });
-      this.routeAction = true;
+      state.routeAction = true;
       if(urlsMatched.length > 0){
-        appActions.doAction.call(this, urlsMatched, null, this);
+        appActions.doAction.call(state, urlsMatched, null, state);
       } else {
         this.$render()
       }    

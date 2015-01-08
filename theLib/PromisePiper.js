@@ -1,12 +1,13 @@
 var Promise = require('es6-promise').Promise;
 var parse = require("parse-stack");
+var stringify = require("json-stringify-safe");
 
 function PromisePiper(sequence){
   sequence = sequence || []
   var rec = [];
 
   var result = function(data, context){
-    if(!PromisePiper.prod) rec.push([JSON.stringify(data),JSON.stringify(context)])
+    if(!PromisePiper.prod) rec.push([stringify(data), stringify(context)])
     var chain = [].concat(sequence);
     chain = chain.map(bindTo(context).bindIt.bind(result));
     return doit(chain, data);

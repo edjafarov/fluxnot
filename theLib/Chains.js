@@ -2,19 +2,19 @@ var clientRederedOnce = false;
 var RouteHandler = require('./RouteHandler');
 
 module.exports = {
-	renderIfClient: function renderIfClient(data){
-    if(RouteHandler.isClient && clientRederedOnce && this.path && this.routeAction) {
-      this.$render();
+	renderIfClient: function renderIfClient(data, context){
+    if(RouteHandler.isClient && clientRederedOnce && context.path && context.routeAction) {
+      context.$render();
       clientRederedOnce = true;
     }
     return data;
   },
-	renderIfServer: function renderIfServer(data){
-    if(this.path && this.routeAction &&  (!RouteHandler.isClient || !clientRederedOnce)) {
-      if(this._emitted) throw new Error("Action could not be finalized twice: " + actionName);
-      this._emitted = true;
+	renderIfServer: function renderIfServer(data, context){
+    if(context.path && context.routeAction &&  (!RouteHandler.isClient || !clientRederedOnce)) {
+      if(context._emitted) throw new Error("Action could not be finalized twice: " + actionName);
+      context._emitted = true;
       try{
-        this.$render();
+        context.$render();
       } catch (e){
         console.log(e)
       }

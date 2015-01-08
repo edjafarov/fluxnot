@@ -6,27 +6,27 @@ module.exports = {
 	
 	usersList: PromisePiper()
 	.then(Resource.get("/api/users"))
-	.then(function(response){
-	  this.emit("users:get", response);
+	.then(function(response, context){
+	  context.emit("users:get", response);
 	  return response;
 	}),
 
 	user: PromisePiper()
 	.then(Resource.get("/api/users/:userId"))
-	.then(function(response){
-	  this.emit("user:get", response);
+	.then(function(response, context){
+	  context.emit("user:get", response);
 	  return response;
 	}),
 
 	userEdit: PromisePiper()
 	.then(Resource.get("/api/users/:userId"))
-	.then(function(response){
-	  this.emit("users:user:fill", response);
+	.then(function(response, context){
+	  context.emit("users:user:fill", response);
 	  return response;
 	}),
 	userCreate: PromisePiper()
-	.then(function(response){
-	  this.emit("users:user:clean");
+	.then(function(response, context){
+	  context.emit("users:user:clean");
 	  return response;		
 	})
 }

@@ -18,7 +18,7 @@ module.exports = function(){
 				if(!context) throw new Error("Context required for action");
 				context.emit = context.actions.emit.bind(context.actions);
 				context.actionName = name;
-				ActionPipe.call(context, data);
+				ActionPipe.call(context, data, context);
 			}
 		},
 		withContext: {
