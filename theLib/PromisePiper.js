@@ -117,7 +117,7 @@ function bindTo(that){
 module.exports = PromisePiper;
 
 
-
+/*
 PromisePiper.use('logUrl', function(data, context, url){
   console.log(url,data);
   return data;
