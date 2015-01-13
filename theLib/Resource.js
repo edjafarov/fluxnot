@@ -29,100 +29,90 @@ module.exports = function Resource(){
 
 var resource = module.exports();
 
-module.exports.get = function(url, query){
-	return function(data, context){
-
-		return new Promise(function(resolve, reject){
-			var req = resource.get(prepreUrl.call(context, url));
-			if(context.request && context.request.headers){
-				req.set(context.request.headers);
-			}
-			
-			if(typeof(query) == 'function') {
-				req.query(query.call(context, data));
-			} else if(typeof(query) == 'object'){
-				req.query(query);
-			}
-			req.on('error', function(err){
-				reject(err);
-			})
-			req.end(function(res){
-				if(res.error) return reject(res.error);
-				resolve(res.body);
-			})
-		}.bind(context));
-	};
+module.exports.get = function get(data, context, url, query){
+	return new Promise(function(resolve, reject){
+		var req = resource.get(prepreUrl.call(context, url));
+		if(context.request && context.request.headers){
+			req.set(context.request.headers);
+		}
+		
+		if(typeof(query) == 'function') {
+			req.query(query.call(context, data));
+		} else if(typeof(query) == 'object'){
+			req.query(query);
+		}
+		req.on('error', function(err){
+			reject(err);
+		})
+		req.end(function(res){
+			if(res.error) return reject(res.error);
+			resolve(res.body);
+		});
+	});
 }
 
-module.exports.post = function(url, body, query){
-	return function(data,context){
-		
-		return new Promise(function(resolve, reject){
-			var req = resource.post(prepreUrl.call(context, url));
-			if(context.request && context.request.headers){
-				req.set(context.request.headers);
-			}			
-			if(query && typeof(query) == 'function') {
-				req.query(query.call(context, data));
-			} else if(query && typeof(query) == 'object'){
-				req.query(query);
-			}
+module.exports.post = function post(data, context, url, body, query){
+	return new Promise(function(resolve, reject){
+		var req = resource.post(prepreUrl.call(context, url));
+		if(context.request && context.request.headers){
+			req.set(context.request.headers);
+		}			
+		if(query && typeof(query) == 'function') {
+			req.query(query.call(context, data));
+		} else if(query && typeof(query) == 'object'){
+			req.query(query);
+		}
 
-			if(body && typeof(body) == 'function'){
-				req.send(body.call(context, data));
-			} else if(body && typeof(body) == 'object'){
-				req.send(body);
-			} else if(body && typeof(body) == 'string') {
-				req.send(data[body]);
-			} else if(!body && data){
-				req.send(data);
-			}
+		if(body && typeof(body) == 'function'){
+			req.send(body.call(context, data));
+		} else if(body && typeof(body) == 'object'){
+			req.send(body);
+		} else if(body && typeof(body) == 'string') {
+			req.send(data[body]);
+		} else if(!body && data){
+			req.send(data);
+		}
 
-			req.on('error', function(err){
-				reject(err);
-			})
-			req.end(function(res){
-				if(res.error) return reject(res.error);
-				resolve(res.body);
-			})
-		}.bind(context));
-	};
+		req.on('error', function(err){
+			reject(err);
+		})
+		req.end(function(res){
+			if(res.error) return reject(res.error);
+			resolve(res.body);
+		})
+	})
 }
 
-module.exports.put
- = function(url, body, query){
-	return function(data, context){
-		
-		return new Promise(function(resolve, reject){
-			var req = resource.put(prepreUrl.call(context, url));
-			if(context.request && context.request.headers){
-				req.set(context.request.headers);
-			}			
-			if(query && typeof(query) == 'function') {
-				req.query(query.call(context, data));
-			} else if(query && typeof(query) == 'object'){
-				req.query(query);
-			}
+module.exports.put = function put(data, context, url, body, query){
+	return new Promise(function(resolve, reject){
+		var req = resource.put(prepreUrl.call(context, url));
+		if(context.request && context.request.headers){
+			req.set(context.request.headers);
+		}			
+		if(query && typeof(query) == 'function') {
+			req.query(query.call(context, data));
+		} else if(query && typeof(query) == 'object'){
+			req.query(query);
+		}
 
-			if(body && typeof(body) == 'function'){
-				req.send(body.call(context, data));
-			} else if(body && typeof(body) == 'object'){
-				req.send(body);
-			} else if(body && typeof(body) == 'string') {
-				req.send(data[body]);
-			} else if(!body && data){
-				req.send(data);
-			}
+		if(body && typeof(body) == 'function'){
+			req.send(body.call(context, data));
+		} else if(body && typeof(body) == 'object'){
+			req.send(body);
+		} else if(body && typeof(body) == 'string') {
+			req.send(data[body]);
+		} else if(!body && data){
+			req.send(data);
+		}
 
-			req.on('error', function(err){
-				reject(err);
-			})
-			req.end(function(res){
-				if(res.error) return reject(res.error);
-				resolve(res.body);
-			})
-		}.bind(context));
-	};
+		req.on('error', function(err){
+			reject(err);
+		})
+		req.end(function(res){
+			if(res.error) return reject(res.error);
+			resolve(res.body);
+		})
+	})
 }
 
 /*

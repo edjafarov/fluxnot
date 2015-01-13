@@ -1,3 +1,5 @@
+var tv4 = require('tv4');
+
 module.exports = {
 	isRequired:function isRequired(name){
 	  return function(data){
@@ -23,6 +25,10 @@ module.exports = {
 	      }
 	    }
 	  }
+	},
+	tv4: function validate(data, context, schema){
+		var isValid = tv4.validate(data, schema);
+		if(!isValid) return Promise.reject(tv4.error);
+		return data;
 	}
-
 }

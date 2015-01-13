@@ -11,7 +11,7 @@ module.exports = function(actions){
 	.then(Validator.isLonger('name').then(5))
 	.then(Validator.isRequired('age'))
 	.then(ifValidationRejected)
-	.then(Resource.post('/api/users'))
+	.post('/api/users')
 	.then(submitted)
 	.catch(emitFormError);
 
@@ -21,7 +21,7 @@ module.exports = function(actions){
 	.then(Validator.isLonger('name').then(5))
 	.then(Validator.isRequired('age'))
 	.then(ifValidationRejected)
-	.then(Resource.put('/api/users/:userId'))
+	.put('/api/users/:userId')
 	.then(submitted)
 	.catch(emitFormError);
 	
